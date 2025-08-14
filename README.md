@@ -1,5 +1,7 @@
 # 项目介绍
-本项目是一个基于streamlit的python项目，已经与最开始的项目“PDFSizeAnalyzer-MCP”大相径庭，刚开始只是简单的给main.py的MCP服务加了个前端界面，后面'发现streamlit打包的特性',又延申了更多的功能，紧接着发现'streamlit cloud'云端免费部署的优劣，又对程序进行了改造，故此，本程序的功能定位越来越混乱，但功能也越来越复杂。
+本项目是一个基于streamlit的python项目，主要部署在云端，用户可以在浏览器中直接使用。
+
+网址：https://wangshuai.streamlit.app/
 
 
 ## streamlit打包的特性
@@ -14,36 +16,24 @@ streamlit cloud 是streamlit官方提供的免费部署服务，用户可以在s
 
 我的处理思路是io.BytesIO() 内存缓冲区 + zipfile.ZipFile 生成压缩包 + 把内存缓冲区交给 st.download_button，全程不落盘，直接提供下载结果。
 
-# 项目结构
-
-```
-打包后的项目结构/
-├── PDF分析和图片处理工具.exe # 启动程序
-├── PDF.py # 第一个页面
-├── main.py # PDF页面的后端程序，此文件以mcp服务的形式运行，可同时支持AI以MCP方式运行
-├── pages/ # 子页面文件夹，每个子页面都是一个.py文件
-│   ├── 图片批量旋转与尺寸调整工具.py
-│   ├── 开源地址.py
-│   ├── 后续新增的其他功能.py
-```
-## 已打包的模块
-
-hiddenimports=['streamlit', 'streamlit.web.cli', 'streamlit-sortables', 'pandas', 'PIL', 'PyMuPDF', 'fitz', 'fastmcp', 'PyPDF2', 'tkinter', 'tkinter.filedialog', 'tkinter.simpledialog', 'tkinter.messagebox', 'tkinter.commondialog', 'tkinter.colorchooser', 'tkinter.font', 'tkinter.ttk', 'tkinter.scrolledtext', 'tkinter.dnd', 'tkinter.constants', 'tkinter.tix'],
-
 
 # 本地浏览器使用说明
 
 1. 用streamlit运行PDF.py
 
 ```bash
+python -m venv venv
 .\venv\Scripts\activate
-streamlit run PDF.py --server.port 8501
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+streamlit run PDF.py
 ```
 
 2. 根据运行窗口生成的网址，或自动打开的网址，在浏览器中打开。
 3. 上传pdf文件，根据需求点击按钮，结果展示在网页展示，并自动打开结果文件夹。
 
 # pyinsaller打包教程
+
+按操作执行：'如果需要打包，就把此文件夹中的内容放到项目根目录'文件夹下的内容移到根目录
 
 1. 激活虚拟环境
 
@@ -86,11 +76,25 @@ pyinstaller run_app.spec
 
 # pages中的子页面
 
-## 图片批量旋转与尺寸调整工具
+## 网易云音乐功能
 
-这是整合了`谢基海`的代码
+- 单曲下载
+- 歌单下载
 
-### 功能
+## 酷匠网小说功能
 
-- 批量旋转图片：支持批量旋转图片，用户可以选择旋转角度。
-- 批量调整尺寸：支持批量调整图片尺寸，用户可以选择调整宽度和高度。
+- 小说下载
+
+## 高德地图
+
+- 坐标转换
+
+## 网站导航
+
+- 导航
+
+
+
+
+
+
