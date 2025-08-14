@@ -1,8 +1,9 @@
 # 项目介绍
 本项目是一个基于streamlit的python项目，主要部署在云端，用户可以在浏览器中直接使用。
-
-网址：https://wangshuai.streamlit.app/
-
+注意：
+1. 本项目主要部署在streamlit cloud上，用户可以在浏览器中直接使用https://wangshuai.streamlit.app/。
+2. 本项目的代码是开源的，用户可以在github上查看和修改代码。
+3. github限制单个文件大小为100MB。
 
 ## streamlit打包的特性
 由于项目基于streamlit并打包，打包后的exe文件只发挥python解释器的功能，而代码仍然以.py的python文件存在，在程序运行时才读取.py代码并运行，这就允许用户在pages中不断增加新的.py文件，增加新的功能。
