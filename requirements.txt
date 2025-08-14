@@ -1,0 +1,9 @@
+streamlit
+pandas
+Pillow
+PyMuPDF
+PyPDF2
+fastmcp
+pyinstaller
+streamlit-sortables
+lxml
