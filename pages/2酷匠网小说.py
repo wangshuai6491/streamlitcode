@@ -79,7 +79,7 @@ def main():
     global stop_event
     stop_event.clear()
     
-    st.title("酷匠小说网小说爬取工具")
+    st.markdown("### 酷匠小说网小说爬取工具")
     st.caption("不支持vip小说 | 仅供学习和研究使用 | 请在 24 小时内删除下载的文件")
     st.sidebar.caption("[酷匠小说网](http://www.kujiang.com/) 请输入小说的书号，例如www.kujiang.com/book/67371中的67371就是书号：")
 

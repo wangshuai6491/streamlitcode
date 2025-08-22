@@ -1,7 +1,7 @@
 import streamlit as st
 import math
 import pandas as pd
-
+import re
 # -------------常量定义-----------
 x_pi = 3.14159265358979324 * 3000.0 / 180.0
 pi = 3.1415926535897932384626  # π
@@ -67,7 +67,7 @@ def wgs84_to_gcj02(lng, lat):
     return [mglng, mglat]
 
 
-def main():
+def zuobiaozhuanhuan():
     # 原坐标系选择
     original_system = st.radio("选择转换模式：", ["高德坐标GCJ02→通用WGS84", "通用WGS84→高德坐标GCJ02"], horizontal=True)
 
@@ -143,19 +143,123 @@ def main():
         else:
             st.warning("请输入坐标")
 
+def roadjson():
+    st.caption("数据接口均采用官方API | 仅供学习和研究使用 | 请在 24 小时内删除下载的文件")
+
+    # ---------- 顶部统一说明书 ----------
+    with st.expander("📖 完整图文操作指南（自动失败时展开）", expanded=False):
+        st.markdown("#### 获取道路或面状数据id")
+        st.markdown("1. 打开高德地图网页版: [高德地图](https://ditu.amap.com)")
+        st.markdown("2. 在搜索框中输入地名或道路名称，点击搜索后，网址将类似https://ditu.amap.com/place/*****")
+        st.markdown("3. 观察浏览器地址栏，此时网址会变为类似: `https://ditu.amap.com/place/B0FFH43XTQ`")
+        st.markdown("4. 其中 `B0FFH43XTQ` 就是该道路的专属id")
+        st.code("示例: https://ditu.amap.com/place/B0FFH43XTQ 中的 B0FFH43XTQ")
+        st.image("static/gd1.png")
+        # 获取坐标数据部分
+        st.markdown("### 获取坐标数据")
+        st.markdown("1. 确保已登录您的高德账号")
+        st.markdown("2. 修改网址前缀为: `https://www.amap.com/detail/get/detail?id=` 加上您刚才获取的道路专属id")
+        st.code("示例: https://www.amap.com/detail/get/detail?id=B0FFH43XTQ")
+        st.markdown("3. 页面中的shape属性即为坐标数据(火星坐标系)")
+        st.markdown("4. 您可以使用 `Ctrl+A`, `Ctrl+C` 复制页面内容，然后使用 **国土行业工具箱pro.atbx** 中的 **4高德道路及面状json转shp** 工具转为shp格式，该工具会自动处理坐标转换")
+        st.image("static/gd2.png")
+
+        # 获取cookie部分
+        st.markdown("### 获取cookie")
+        st.markdown("1. 打开刚才的坐标数据网址: `https://www.amap.com/detail/get/detail?id=B0FFH43XTQ`")
+        st.markdown("2. 打开浏览器的开发者模式 (通常按 F12 或 Ctrl+Shift+I)")
+        st.markdown("3. 切换到 '网络'(Network) 标签页")
+        st.markdown("4. 刷新页面，找到名称为 'detail' 的请求")
+        st.markdown("5. 在 '请求头'(Headers) 部分找到 'Cookie' 字段，复制其值")
+        st.image("static/gd3.png")
+        st.info("提示: Cookie 包含您的登录信息，请妥善保管，不要泄露给他人")
+
+    # ---------- 步骤 1：贴网址，自动提 ID ----------
+    st.markdown("### ① 获取道路 / 区域 ID")
+    st.markdown("1. 打开高德地图网页版并**登录**: [高德地图](https://ditu.amap.com)")
+    st.markdown("2. 在搜索框中输入地名或道路名称，点击搜索后，网址将类似https://ditu.amap.com/place/*****")
+    url = st.text_input(
+        "把搜索后的完整网址粘贴进来，比如",
+        placeholder="https://ditu.amap.com/place/B0FFH43XTQ",
+        key="url_input",
+    )
+    # 先把按钮画出来
+    clicked = st.button("提取 ID")
+
+    # 再放示例图（用占位符，方便后面清空）
+    img_slot = st.empty()
+
+    # 只在未点击时显示示例图
+    if not clicked:
+        img_slot.image("static/gd1.png")
+
+    # 点击后的处理
+    if clicked:
+        img_slot.empty()
+        if url:
+            import re
+            m = re.search(r"place/([A-Z0-9]+)", url)
+            if m:
+                road_id = m.group(1)
+                st.session_state["road_id"] = road_id
+                st.success(f"已提取 ID：**{road_id}**")
+            else:
+                st.error("未识别到 ID，请检查网址")
+        else:
+            st.warning("请先粘贴网址")
+
+    # ---------- 步骤 2：一键拼坐标链接 ----------
+    if st.session_state.get("road_id"):
+        st.markdown("### ② 获取坐标数据")
+        link = f"https://www.amap.com/detail/get/detail?id={st.session_state['road_id']}"
+        st.markdown(f"[点击获取坐标数据{link}]({link})")
+        st.info("复制上方链接到浏览器 → 进行滑块验证等操作 → 全选ctrl+a → 复制ctrl+c")
+        # 用来放示例图，稍后清空
+        # 示例图占位符（先定义！）
+        img_slot1 = st.empty()
+        img_slot1.image("static/gd2.png")
+        # 让用户粘贴
+        json_data = st.text_area(
+            "请粘贴复制的 JSON 数据",
+            placeholder="粘贴 JSON 数据...",
+            height=200,
+            key="json_input"
+        )
+        # 用户粘贴清空示例图
+        if json_data:
+            img_slot1.empty()
+
+        # ---------- 步骤 3：提醒拿 Cookie ----------
+        st.markdown("### ③ 获取 Cookie")
+        st.caption("如果你安装了 **Cookie获取器** 等插件，在插件中直接点击 **获取 Cookie** 按钮即可")
+        st.markdown(f"[手动获取，仍在上一步的页面：{link}]({link})")
+        st.markdown(
+            """
+            1. 按 **F12** 打开开发者工具  
+            2. 切到 **Network或网络**，刷新页面，也就是在地址栏重新输入网址并回车一次
+            3. 找到 `detail/****` 请求 → **Headers或标头** → **Cookie**  
+            4. 整段复制 Cookie 值
+            """
+        )
+        st.info("提示: Cookie 包含您的登录信息，请妥善保管，不要泄露给他人")
+        st.image("static/gd3.png")
+
+
 if __name__ == '__main__':
     # Streamlit UI
-    st.set_page_config(page_title="地理坐标系转换", layout="wide")
-    st.title("地理坐标系转换")
+    st.set_page_config(page_title="高德地图", layout="wide")
+    st.markdown("### 高德地图")
 
     # 侧边导航栏
     option = st.sidebar.radio(
         "功能导航:",
-        ["坐标转换", "其他功能"]
+        ["坐标转换", "道路及面状json", "其他功能"]
     )
 
     if option == "坐标转换":
-        main()
+        zuobiaozhuanhuan()
+    elif option == "道路及面状json":
+        roadjson()
     elif option == "其他功能":
         st.subheader("其他功能开发中")
         st.info("更多坐标转换相关功能即将上线，敬请期待！")
