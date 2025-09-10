@@ -122,18 +122,23 @@ def main():
         """
         <div style="display:flex;flex-direction:column;margin-bottom:20px;">
             <a href="https://jiheutools-knvf60mx.maozi.io/" target="_blank">
-                <button style="padding:8px 16px;margin-bottom:10px;background:#2196F3;color:white;border:none;border-radius:4px;cursor:pointer;width:100%;">
+                <button style="padding:8px 16px;margin-bottom:10px;background:#FF5722;color:white;border:none;border-radius:4px;cursor:pointer;width:100%;">
                     uTools 多功能插件
                 </button>
             </a>
             <a href="https://www.ilovepdf.com/zh-cn/compress_pdf" target="_blank">
-                <button style="padding:8px 16px;margin-bottom:10px;background:#4CAF50;color:white;border:none;border-radius:4px;cursor:pointer;width:100%;">
+                <button style="padding:8px 16px;margin-bottom:10px;background:#FF5722;color:white;border:none;border-radius:4px;cursor:pointer;width:100%;">
                     iLovePDF
                 </button>
             </a>
             <a href="https://www.pdf2go.com/zh/compress-pdf" target="_blank">
                 <button style="padding:8px 16px;background:#FF5722;color:white;border:none;border-radius:4px;cursor:pointer;width:100%;">
                     PDF2Go
+                </button>
+            </a>
+            <a href="https://www.pdfgear.com/zh/" target="_blank">
+                <button style="padding:8px 16px;background:#FF5722;color:white;border:none;border-radius:4px;cursor:pointer;width:100%;">
+                    pdfgear
                 </button>
             </a>
         </div>
