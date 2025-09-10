@@ -27,11 +27,11 @@ def create_card(title, description, link, color):
 websites = [
     {"title": "开源地址", "description": "项目的开源地址", "link": "https://gitee.com/cao15110/pdfsize-analyzer-mcp"},
     {"title": "前端页面", "description": "uTools插件项目的前端页面", "link": "https://jiheutools-knvf60mx.maozi.io/"},
-    {"title": "ilovepdf", "description": "免费的PDF工具", "link": "https://www.ilovepdf.com/zh-cn/compress_pdf"},
-    {"title": "pdf2go", "description": "免费的PDF工具", "link": "https://www.pdf2go.com/zh/compress-pdf"},
     {"title": "谢海基", "description": "谢海基的arcgis工具箱", "link": "https://haijigiserweb-ne2vp0ok.maozi.io/"},
     {"title": "王帅", "description": "王帅的arcgis工具箱", "link": "https://share.note.youdao.com/s/5pcwelCC"},
-
+    {"title": "ilovepdf", "description": "免费的PDF工具", "link": "https://www.ilovepdf.com/zh-cn/compress_pdf"},
+    {"title": "pdf2go", "description": "免费的PDF工具", "link": "https://www.pdf2go.com/zh/compress-pdf"},
+    {"title": "pdfgear", "description": "可以和AI对话的PDF工具", "link": "https://www.pdfgear.com/zh/"},
     # 更多网站信息...
 ]
 
