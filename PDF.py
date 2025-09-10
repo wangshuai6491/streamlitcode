@@ -4,7 +4,7 @@ import fitz
 from typing import Union
 from io import BytesIO
 import os
-
+import textwrap
 # 统一类型别名
 PathOrBuffer = Union[str, BytesIO]
 
@@ -76,6 +76,24 @@ def handle_file_upload() -> BytesIO | None:
         return uploaded
     return None
 
+# ---------- markdown格式的网页标签用于生成推荐网站的按钮 ----------
+def pdf_buttons_html(*items: tuple[str, str]) -> str:
+    """
+    items: (标题, 链接)
+    """
+    colors = ["#FF6B35", "#4ECDC4", "#45B7D1", "#96CEB4"]
+    tpl = textwrap.dedent("""\
+        <a href="{url}" target="_blank" style="text-decoration:none;">
+          <button style="padding:8px 16px;margin-bottom:10px;background:{c};
+                         color:white;border:none;border-radius:4px;cursor:pointer;width:100%;">
+            {title}
+          </button>
+        </a>""")
+    blocks = [tpl.format(title=t, url=u, c=colors[i % len(colors)])
+              for i, (t, u) in enumerate(items)]
+    return f'<div style="display:flex;flex-direction:column;">{"".join(blocks)}</div>'
+
+
 # ---------- Streamlit ----------
 def main():
     # ---------- 页面配置 ----------
@@ -118,33 +136,15 @@ def main():
 
     # ---------- 功能 2：在线工具推荐 ----------
     st.sidebar.caption("在线 PDF 工具推荐")
-    st.sidebar.markdown(
-        """
-        <div style="display:flex;flex-direction:column;margin-bottom:20px;">
-            <a href="https://jiheutools-knvf60mx.maozi.io/" target="_blank">
-                <button style="padding:8px 16px;margin-bottom:10px;background:#FF5722;color:white;border:none;border-radius:4px;cursor:pointer;width:100%;">
-                    uTools 多功能插件
-                </button>
-            </a>
-            <a href="https://www.ilovepdf.com/zh-cn/compress_pdf" target="_blank">
-                <button style="padding:8px 16px;margin-bottom:10px;background:#FF5722;color:white;border:none;border-radius:4px;cursor:pointer;width:100%;">
-                    iLovePDF
-                </button>
-            </a>
-            <a href="https://www.pdf2go.com/zh/compress-pdf" target="_blank">
-                <button style="padding:8px 16px;background:#FF5722;color:white;border:none;border-radius:4px;cursor:pointer;width:100%;">
-                    PDF2Go
-                </button>
-            </a>
-            <a href="https://www.pdfgear.com/zh/" target="_blank">
-                <button style="padding:8px 16px;background:#FF5722;color:white;border:none;border-radius:4px;cursor:pointer;width:100%;">
-                    pdfgear
-                </button>
-            </a>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    buttons = pdf_buttons_html(
+        ("uTools 多功能插件", "https://jiheutools-knvf60mx.maozi.io/"),
+        ("iLovePDF",           "https://www.ilovepdf.com/zh-cn/compress_pdf"),
+        ("PDF2Go",             "https://www.pdf2go.com/zh/compress-pdf"),
+        ("pdfgear",            "https://www.pdfgear.com/zh/"),
+        # ↑↑↑ 想加就继续写一行 ↑↑↑
     )
+    st.sidebar.markdown(buttons, unsafe_allow_html=True)
+
     # ---------- 底部 ----------
     st.markdown("---")
     st.caption("🚀 页面缓存可通过 Ctrl+Shift+R 强制刷新")
