@@ -312,9 +312,6 @@ def bus():
         # ① 用按钮代替裸链接，好看一点
         st.link_button("🔗 一键获取公交 JSON 数据", url1, use_container_width=True)
 
-    # ---------- 底部 ----------
-    st.markdown("---")
-    st.caption("💡 拿到 JSON 后，回到 **国土行业工具箱** 即可生成 Shapefile 文件，⬇️ [下载国土行业工具箱](https://share.note.youdao.com/s/5pcwelCC)")
 
 if __name__ == '__main__':
     # Streamlit UI
@@ -337,6 +334,11 @@ if __name__ == '__main__':
         st.subheader("其他功能开发中")
         st.info("更多坐标转换相关功能即将上线，敬请期待！")
         # 这里可以预留其他功能的接口
+
+    # ---------- 底部 ----------
+    st.markdown("---")
+    st.caption("💡 拿到 JSON 后，回到 **国土行业工具箱** 即可生成 Shapefile 文件，⬇️ [下载国土行业工具箱](https://share.note.youdao.com/s/5pcwelCC)")
+
     # 页脚
     st.sidebar.caption("本网站目前只支持WGS84、GCJ02坐标系转换")
     st.sidebar.caption("其他同功能网站：https://www.iamwawa.cn/zuobiao.html")
