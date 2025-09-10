@@ -2,6 +2,7 @@ import streamlit as st
 import math
 import pandas as pd
 import re
+from urllib.parse import unquote
 # -------------常量定义-----------
 x_pi = 3.14159265358979324 * 3000.0 / 180.0
 pi = 3.1415926535897932384626  # π
@@ -65,7 +66,6 @@ def wgs84_to_gcj02(lng, lat):
     mglat = lat + dlat
     mglng = lng + dlng
     return [mglng, mglat]
-
 
 def zuobiaozhuanhuan():
     # 原坐标系选择
@@ -176,7 +176,7 @@ def roadjson():
 
     # ---------- 步骤 1：贴网址，自动提 ID ----------
     st.markdown("### ① 获取道路 / 区域 ID")
-    st.markdown("1. 打开高德地图网页版并**登录**: [高德地图](https://ditu.amap.com)")
+    st.markdown("1. 打开高德地图网页版并**登录!登录!登录!**: [高德地图](https://ditu.amap.com)")
     st.markdown("2. 在搜索框中输入地名或道路名称，点击搜索后，网址将类似https://ditu.amap.com/place/*****")
     url = st.text_input(
         "把搜索后的完整网址粘贴进来，比如",
@@ -244,6 +244,77 @@ def roadjson():
         st.info("提示: Cookie 包含您的登录信息，请妥善保管，不要泄露给他人")
         st.image("static/gd3.png")
 
+def bus():
+    st.caption("数据接口均采用官方API | 仅供学习和研究使用 | 请在 24 小时内删除下载的文件")
+    st.markdown("### 📖 获取公交路线和站点")
+    st.markdown("请首先**登录!登录!登录!**[高德地图网页版](https://ditu.amap.com)")
+
+    # ---------- 1. 三种入口收进 tabs ----------
+    tab_url, tab_manual, tab_dev = st.tabs([
+        "🔗 粘贴高德链接（自动解析）",
+        "📝 手动输入城市+线路",
+        "⚙️ 兜底开发者模式"
+    ])
+
+    # 初始化 session_state
+    for k in ("city", "bus_line"):
+        if k not in st.session_state:
+            st.session_state[k] = ""
+
+    # ---- Tab 1：自动解析 ----
+    with tab_url:
+        url = st.text_input(
+            "切换城市（比如太原），搜索公交（比如801路），粘贴网页地址栏链接,回车确认：",
+            placeholder="https://ditu.amap.com/search?query=801路&city=140100…",
+            key="url_input"
+        )
+        if url:
+            m = re.search(r"query=([^&]+)&city=(\d+)", url)
+            if m:
+                st.session_state["bus_line"] = unquote(m.group(1))
+                st.session_state["city"] = m.group(2)
+                st.success(f"已提取 线路：**{st.session_state['bus_line']}** 城市代码：**{st.session_state['city']}**")
+            else:
+                st.error("未识别到 ID，请检查网址")
+
+    # ---- Tab 2：手动输入 ----
+    with tab_manual:
+        c1, c2 = st.columns(2)
+        with c1:
+            st.session_state["city"] = st.text_input(
+                "请输入行政区代码",
+                value=st.session_state["city"],
+                placeholder="比如太原是140100"
+            )
+        with c2:
+            st.session_state["bus_line"] = st.text_input(
+                "请输入公交路线，回车确认",
+                value=st.session_state["bus_line"],
+                placeholder="比如801路"
+            )
+
+    # ---- Tab 3：开发者模式（兜底预留） ----
+    with tab_dev:
+        st.markdown("1. 确保**登录!登录!登录!**: [高德地图](https://ditu.amap.com)")
+        st.markdown("2. 在搜索框中输入公交，比如先切换到太原，搜索801路")
+        st.markdown("3. 按F12进入开发者模式，点击网络（net）,刷新页面,搜索以下内容")
+        st.code("query_type=TQUERY&pagesize=20&pagenum=1&qii=true", language="text")
+        st.image("static/gd4.png")
+
+    # ---------- 2. 公共底部 ----------
+    if st.session_state["city"] and st.session_state["bus_line"]:
+        url1 = (
+            "https://ditu.amap.com/service/poiInfo"
+            "?query_type=TQUERY"
+            f"&city={st.session_state['city']}"
+            f"&keywords={st.session_state['bus_line']}"
+        )
+        # ① 用按钮代替裸链接，好看一点
+        st.link_button("🔗 一键获取公交 JSON 数据", url1, use_container_width=True)
+
+    # ---------- 底部 ----------
+    st.markdown("---")
+    st.caption("💡 拿到 JSON 后，回到 **国土行业工具箱** 即可生成 Shapefile 文件，⬇️ [下载国土行业工具箱](https://share.note.youdao.com/s/5pcwelCC)")
 
 if __name__ == '__main__':
     # Streamlit UI
@@ -253,13 +324,15 @@ if __name__ == '__main__':
     # 侧边导航栏
     option = st.sidebar.radio(
         "功能导航:",
-        ["坐标转换", "道路及面状json", "其他功能"]
+        ["坐标转换", "道路及面状json", "公交","其他功能"]
     )
 
     if option == "坐标转换":
         zuobiaozhuanhuan()
     elif option == "道路及面状json":
         roadjson()
+    elif option == "公交":
+        bus()
     elif option == "其他功能":
         st.subheader("其他功能开发中")
         st.info("更多坐标转换相关功能即将上线，敬请期待！")
