@@ -7,3 +7,5 @@ fastmcp
 pyinstaller
 streamlit-sortables
 lxml
+python-docx
+beautifulsoup4
