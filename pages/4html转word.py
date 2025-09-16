@@ -1,4 +1,3 @@
-# pages/3_HTML2DOCX.py
 import streamlit as st
 from bs4 import BeautifulSoup
 from docx import Document
@@ -6,25 +5,10 @@ from docx.shared import Pt, RGBColor
 import pandas as pd
 import io
 import base64
-
+import os
 # ---------- 常量：HTML标签级别映射，样式 ----------
 LV_MAP = {"h1": 1, "h2": 2, "h3": 3, "h4": 4, "h5": 5, "h6": 6}
-LV_CN = {1: "标题1", 2: "标题2", 3: "标题3", 4: "标题4", 5: "标题5", 6: "标题6", 0: "正文"}
-
-STYLE_PRESETS = {
-    "正式报告": {
-        1: {"size": 18, "bold": True, "color": (0, 0, 0)},
-        2: {"size": 16, "bold": True, "color": (0, 0, 0)},
-        3: {"size": 14, "bold": True, "color": (0, 0, 0)},
-        0: {"size": 12, "bold": False, "color": (0, 0, 0)},
-    },
-    "科技蓝": {
-        1: {"size": 20, "bold": True, "color": (0, 84, 159)},
-        2: {"size": 16, "bold": True, "color": (0, 84, 159)},
-        3: {"size": 14, "bold": True, "color": (0, 84, 159)},
-        0: {"size": 12, "bold": False, "color": (0, 0, 0)},
-    },
-}
+LV_CN = {1: "标题 1", 2: "标题 2", 3: "标题 3", 4: "标题 4", 5: "标题 5", 6: "标题 6", 0: "正文"}
 
 # 默认内容标签列表
 DEFAULT_CONTENT_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'li', 'span']
@@ -42,6 +26,9 @@ def quick_tag_map(html: str, content_tags):
     # 创建表格数据，只包含标签和示例，级别信息在主流程中添加
     rows = [{"标签": f"<{k}>", "示例": v, "default_level": LV_MAP.get(k, 0)} for k, v in tag_sample.items()]
     return pd.DataFrame(rows)
+
+# 存储原始标签信息的字典
+tag_info_map = {}
 
 def process_element(element, content_tags, blocks):
     """递归处理HTML元素，构建文档块"""
@@ -74,10 +61,14 @@ def process_element(element, content_tags, blocks):
         if not has_content_child:
             full_text = text.strip()
             if full_text:
+                block_id = len(blocks)
                 blocks.append({
                     "text": full_text,
-                    "level": LV_MAP.get(element.name, 0)
+                    "level": LV_MAP.get(element.name, 0),
+                    "tag": element.name  # 保存原始标签名称
                 })
+                # 存储标签信息映射，用于预览时精确匹配
+                tag_info_map[block_id] = element.name
         
         return ''
     # 处理其他标签（如div等容器标签）
@@ -92,6 +83,8 @@ def parse_html_to_blocks(html_raw, content_tags):
     """将HTML解析为文档块列表"""
     soup = BeautifulSoup(html_raw, "html.parser")
     blocks = []
+    global tag_info_map
+    tag_info_map = {}
     
     # 递归处理HTML元素
     process_element(soup, content_tags, blocks)
@@ -106,23 +99,51 @@ def parse_html_to_blocks(html_raw, content_tags):
     
     return blocks
 
-def build_docx(blocks, preset):
-    """根据文档块和样式预设构建DOCX文档"""
-    doc = Document()
-    style = STYLE_PRESETS[preset]
+def build_docx(blocks, template_name="数字章节", custom_template=None):
+    """根据文档块使用自定义模板构建DOCX文档"""
+    # 获取当前脚本所在目录
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # 构建static文件夹的绝对路径
+    static_dir = os.path.join(current_dir, "..", "static")
+    
+    # 处理选择了自定义模板但未上传文件的情况
+    if template_name == "自定义模板" and custom_template is None:
+        st.error("请上传自定义模板文件！")
+        return None
+    
+    # 优先使用自定义上传的模板
+    if custom_template is not None:
+        try:
+            doc = Document(custom_template)
+        except Exception as e:
+            st.error(f"自定义模板加载失败：{str(e)}")
+            # 加载失败时回退到默认模板（数字章节）
+            template_path = os.path.join(static_dir, "数字章节.docx")
+            doc = Document(template_path)
+    else:
+        # 如果没有自定义模板，则使用选择的预设模板
+        if template_name == "汉字章节":
+            template_path = os.path.join(static_dir, "汉字章节.docx")
+        else:
+            template_path = os.path.join(static_dir, "数字章节.docx")
+        doc = Document(template_path)
+    
     for blk in blocks:
         level = blk["level"]
         para = doc.add_paragraph()
         run = para.add_run(blk["text"])
-        run.font.size = Pt(style[level]["size"])
-        run.bold = style[level]["bold"]
-        run.font.color.rgb = RGBColor(*style[level]["color"])
+        
+        # 使用模板中的样式
         if level >= 1:
             para.style = f"Heading {level}"
+    
     return doc
 
 def create_download_link(doc):
     """创建DOCX文件的下载链接"""
+    if doc is None:
+        return None
+    
     buffer = io.BytesIO()
     doc.save(buffer)
     buffer.seek(0)
@@ -130,40 +151,6 @@ def create_download_link(doc):
     href = f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="export.docx">⏬ 下载 DOCX</a>'
     return href
 
-def preview_document(blocks, tag_lv, preset):
-    """预览文档格式效果"""
-    # 应用标签级别映射
-    preview_blocks = []
-    for blk in blocks:
-        preview_blk = blk.copy()
-        # 用原文本反查标签（只取第一个匹配）
-        for tag_name, lvl in tag_lv.items():
-            tag_without_brackets = tag_name.strip("<>")
-            # 查找原始标签与映射表中的标签匹配
-            if blk["level"] == LV_MAP.get(tag_without_brackets, 0):   # 粗略匹配
-                preview_blk["level"] = lvl
-                break
-        preview_blocks.append(preview_blk)
-    
-    # 使用Streamlit的markdown展示预览
-    style = STYLE_PRESETS[preset]
-    preview_html = "<div style='font-family: SimSun, serif; padding: 20px; background-color: #f9f9f9; border-radius: 5px;'>"
-    
-    for blk in preview_blocks:
-        level = blk["level"]
-        text = blk["text"]
-        size = style[level]["size"]
-        bold = "font-weight: bold;" if style[level]["bold"] else ""
-        color = f"color: rgb{style[level]["color"]};"
-        
-        if level >= 1:
-            heading_tag = f"h{level}"
-            preview_html += f"<{heading_tag} style='{bold} {color} margin: 10px 0;'>{text}</{heading_tag}>"
-        else:
-            preview_html += f"<p style='{bold} {color} font-size: {size}px; margin: 5px 0;'>{text}</p>"
-    
-    preview_html += "</div>"
-    return preview_html
 
 def get_sidebar_input():
     """获取侧边栏用户输入"""
@@ -195,8 +182,6 @@ if __name__ == "__main__":
     # 初始化会话状态
     if "parsed_data" not in st.session_state:
         st.session_state["parsed_data"] = None
-    if "preview_html" not in st.session_state:
-        st.session_state["preview_html"] = None
     if "tag_lv" not in st.session_state:
         st.session_state["tag_lv"] = None
     
@@ -222,79 +207,88 @@ if __name__ == "__main__":
         df.insert(1, "级别", df["default_level"].map(LV_CN))
         rev_cn = {v: k for k, v in LV_CN.items()}
         st.session_state["tag_lv"] = {row["标签"]: rev_cn[row["级别"]] for _, row in df.iterrows()}
-        
-        st.success("HTML解析完成！")
-    
+
     # 如果已经解析过数据，显示功能界面
     if st.session_state["parsed_data"]:
         # 获取解析数据
         df = st.session_state["parsed_data"]["df_map"].copy()
         blocks = st.session_state["parsed_data"]["blocks"].copy()
         
-        # 用两个tab
-        tab1, tab2 = st.tabs(["预览导出", "自定义修改"])
+        # 1. 调整HTML标签对应的文档级别
+        st.markdown("### 1.调整HTML标签对应的文档级别")
+        # 添加级别列，并设置为可编辑
+        df.insert(1, "级别", df["default_level"].map(LV_CN))
+        df = df.drop(columns=["default_level"])
         
-        with tab1:
-            # 将样式选择功能移至级别映射表格之前
-            st.markdown("### 选择样式")
-            preset = st.selectbox("样式模板", list(STYLE_PRESETS.keys()))
-
-            # 预览和导出功能
-            rev_cn = {v: k for k, v in LV_CN.items()}
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                if st.button("👁️ 预览文档"):
-                    with st.spinner("生成预览中..."):
-                        st.session_state["preview_html"] = preview_document(
-                            blocks, 
-                            st.session_state["tag_lv"], 
-                            preset
-                        )
-            
-            with col2:
-                if st.button("📄 生成 DOCX 文档", type="primary"):
-                    with st.spinner("生成DOCX文档中..."):
-                        # 在生成DOCX时进行级别更新
-                        for blk in blocks:
-                            # 用原文本反查标签（只取第一个匹配）
-                            for tag_name, lvl in st.session_state["tag_lv"].items():
-                                tag_without_brackets = tag_name.strip("<>")
-                                # 查找原始标签与映射表中的标签匹配
-                                if blk["level"] == LV_MAP.get(tag_without_brackets, 0):   # 粗略匹配
-                                    blk["level"] = lvl
-                                    break
-                        
-                        # 构建并提供下载链接
-                        doc = build_docx(blocks, preset)
-                        download_link = create_download_link(doc)
-                        st.markdown(download_link, unsafe_allow_html=True)
-                        st.balloons()
-            
-            # 显示预览结果
-            if st.session_state["preview_html"]:
-                st.markdown(st.session_state["preview_html"], unsafe_allow_html=True)
+        edited_df = st.data_editor(
+            df,
+            use_container_width=True,
+            column_config={"级别": st.column_config.SelectboxColumn(options=list(LV_CN.values()))},
+            disabled=["标签", "示例"],
+            key="editor"
+        )
         
-        with tab2:
-            # 级别映射表格
-            st.markdown("### 调整HTML标签对应的文档级别")
-            # 添加级别列，并设置为可编辑
-            df.insert(1, "级别", df["default_level"].map(LV_CN))
-            # 删除默认级别数字列
-            df = df.drop(columns=["default_level"])
+        # 保存映射结果到会话状态
+        rev_cn = {v: k for k, v in LV_CN.items()}
+        st.session_state["tag_lv"] = {row["标签"]: rev_cn[row["级别"]] for _, row in edited_df.iterrows()}
+        
+        # 2. 样式选择
+        st.markdown("### 2.选择模板样式")
+        
+        # 使用列布局展示模板示意图
+        import os
+        # 获取当前脚本所在目录
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # 构建static文件夹的绝对路径
+        static_dir = os.path.join(current_dir, "..", "static")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            szzj_path = os.path.join(static_dir, "szzj.png")
+            st.image(szzj_path, caption="数字章节模板", width=300)
+        with col2:
+            hzzj_path = os.path.join(static_dir, "hzzj.png")
+            st.image(hzzj_path, caption="汉字章节模板", width=300)
             
-            edited_df = st.data_editor(
-                df,
-                use_container_width=True,
-                column_config={"级别": st.column_config.SelectboxColumn(options=list(LV_CN.values()))},
-                disabled=["标签", "示例"],
-                key="editor"
+        template_option = st.radio(
+            "请选择要使用的模板样式：",
+            ["数字章节", "汉字章节", "自定义模板"],
+            index=0,
+            horizontal=True
+        )
+        
+        custom_template = None
+        # 只有选择自定义模板选项时，才显示上传按钮
+        if template_option == "自定义模板":
+            custom_template = st.file_uploader(
+                "上传 .docx 格式的自定义模板",
+                type="docx",
+                help="上传自定义的Word模板文档"
             )
-            
-            # 保存映射结果到会话状态
-            rev_cn = {v: k for k, v in LV_CN.items()}
-            st.session_state["tag_lv"] = {row["标签"]: rev_cn[row["级别"]] for _, row in edited_df.iterrows()}
-            
-            st.info("级别映射已更新！请切换到'预览导出'标签页查看效果。")
+        
+        # 3. 下载功能
+        rev_cn = {v: k for k, v in LV_CN.items()}
+        if st.button("📄 生成 DOCX 文档", type="primary"):
+            with st.spinner(f"使用'{template_option}'模板生成DOCX文档中..."):
+                # 创建新的blocks副本以避免修改原始数据
+                updated_blocks = []
+                for blk in blocks:
+                    updated_blk = blk.copy()
+                    # 使用原始标签信息进行精确匹配
+                    original_tag = blk.get("tag")
+                    if original_tag:
+                        # 查找原始标签对应的映射级别
+                        for tag_name, lvl in st.session_state["tag_lv"].items():
+                            if tag_name.strip("<>") == original_tag:
+                                updated_blk["level"] = lvl
+                                break
+                    updated_blocks.append(updated_blk)
+                
+                # 构建并提供下载链接
+                doc = build_docx(updated_blocks, template_option, custom_template)
+                if doc is not None:
+                    download_link = create_download_link(doc)
+                    if download_link is not None:
+                        st.markdown(download_link, unsafe_allow_html=True)
             
