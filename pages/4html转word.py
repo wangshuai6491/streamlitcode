@@ -152,32 +152,50 @@ def create_download_link(doc):
     return href
 
 
-def get_sidebar_input():
-    """获取侧边栏用户输入"""
-    with st.sidebar:
+def get_main_input():
+    """获取主页面用户输入"""
+    # 创建两列布局，左侧占更大空间
+    col1, col2 = st.columns([3, 1])  # 左侧宽度是右侧的3倍
+    
+    with col1:
+        st.markdown("### 0.📝 HTML 输入区域")
         html_raw = st.text_area("粘贴 HTML", height=150, help="在此粘贴您想要转换的HTML代码")
-        
+    
+    with col2:
         # 添加自定义内容标签配置
-        st.markdown("### 自定义内容标签")
+        st.markdown("### 🔧 自定义内容标签")
         default_tags_str = ", ".join(DEFAULT_CONTENT_TAGS)
         custom_tags = st.text_input("作为独立段落的标签（逗号分隔）", value=default_tags_str, 
-                                   help="例如: h1, h2, p, li, span, div")
+                                    help="例如: h1, h2, p, li, span, div")
         content_tags = [tag.strip() for tag in custom_tags.split(",") if tag.strip()]
+    
+    # 解析按钮放在下方
+    parsed = False
+    if st.button("🔍 开始解析", type="primary"):
+        if html_raw:
+            parsed = True
+        else:
+            st.warning("请先粘贴HTML代码")
+    
+    return html_raw, content_tags, parsed
+
+def show_recommended_sites():
+    """显示推荐网站侧边栏"""
+    with st.sidebar:
+        st.caption("### 🌟 推荐网站")
+        st.markdown("- [kalvinbg](https://tools.kalvinbg.cn/doc/html2word)")
+        st.markdown("- [freeconvert](https://www.freeconvert.com/zh/html-to-word)")
+        st.markdown("- [cdkm](https://cdkm.com/cn/html-to-doc)")
         
-        # 侧边栏的解析按钮
-        parsed = False
-        if st.button("🔍 开始解析", type="primary"):
-            if html_raw:
-                parsed = True
-            else:
-                st.warning("请先在左侧粘贴HTML代码")
-        
-        return html_raw, content_tags, parsed
+        # 分隔线
+        st.markdown("---")
+        st.markdown("💡 希望这些网站对您有帮助！")
 
 # ---------- 主流程 ----------
 if __name__ == "__main__":
     st.set_page_config(page_title="HTML → DOCX 精调导出", layout="wide")
-    st.markdown("### 🚀 HTML 转 DOCX 精调工作台")
+    # 显示推荐网站侧边栏
+    show_recommended_sites()
     
     # 初始化会话状态
     if "parsed_data" not in st.session_state:
@@ -185,8 +203,8 @@ if __name__ == "__main__":
     if "tag_lv" not in st.session_state:
         st.session_state["tag_lv"] = None
     
-    # 获取侧边栏输入
-    html_raw, content_tags, parsed = get_sidebar_input()
+    # 获取主页面输入
+    html_raw, content_tags, parsed = get_main_input()
     
     # 如果点击了解析按钮
     if parsed:
