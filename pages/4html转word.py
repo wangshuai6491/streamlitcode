@@ -252,9 +252,6 @@ if __name__ == "__main__":
         
         # 2. 样式选择
         st.markdown("### 2.选择模板样式")
-        
-        # 使用列布局展示模板示意图
-        import os
         # 获取当前脚本所在目录
         current_dir = os.path.dirname(os.path.abspath(__file__))
         # 构建static文件夹的绝对路径
