@@ -183,10 +183,12 @@ def get_text_input():
 def show_sidebar():
     """展示侧边栏推荐网站"""
     with st.sidebar:
-        st.caption("### 🌟 推荐网站")
+        st.caption("### 🌟 md转word网站")
         st.markdown("- [markdowntoword](https://markdowntoword.io/zh)")
         st.markdown("- [cloudconvert](https://cloudconvert.com/md-to-docx)")
         st.markdown("- [convertio](https://convertio.co/zh/md-docx/)")
+        st.caption("### 🌟 word转md网站")
+        st.markdown("- [word转md](https://www.word2md.net/zh)")
 
 
 def get_template_option():
