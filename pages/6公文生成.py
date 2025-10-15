@@ -384,5 +384,6 @@ def main():
         
         # 显示结果
         display_results(template_content)
+        
 if __name__ == "__main__":
     main()
