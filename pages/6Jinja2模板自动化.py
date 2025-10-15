@@ -207,15 +207,19 @@ def process_regular_variables(current_element):
     """处理常规变量输入"""
     st.write("请提供以下基础信息：")
     
-    for var in current_element["variables"]:
-        if var not in st.session_state.params:
-            st.session_state.params[var] = ""
-        
-        st.session_state.params[var] = st.text_input(
-            f"{var}", 
-            value=st.session_state.params[var],
-            key=f"step_{st.session_state.current_step}_{var}"
-        )
+    variables = current_element["variables"]
+    for i in range(0, len(variables), 3):
+        cols = st.columns(3)
+        chunk = variables[i:i+3]
+        for idx, var in enumerate(chunk):
+            if var not in st.session_state.params:
+                st.session_state.params[var] = ""
+            with cols[idx]:
+                st.session_state.params[var] = st.text_input(
+                    f"{var}", 
+                    value=st.session_state.params[var],
+                    key=f"step_{st.session_state.current_step}_{var}"
+                )
 
 
 def process_conditional_variables(current_element):
@@ -242,15 +246,19 @@ def process_conditional_variables(current_element):
         opt for opt in current_element["options"] 
         if opt["value"] == st.session_state.params[current_element['condition_var']]
     )
-    for var in selected_option["variables"]:
-        if var not in st.session_state.params:
-            st.session_state.params[var] = ""
-        
-        st.session_state.params[var] = st.text_input(
-            f"{var}", 
-            value=st.session_state.params[var],
-            key=f"step_{st.session_state.current_step}_{var}"
-        )
+    variables = selected_option["variables"]
+    for i in range(0, len(variables), 3):
+        cols = st.columns(3)
+        chunk = variables[i:i+3]
+        for idx, var in enumerate(chunk):
+            if var not in st.session_state.params:
+                st.session_state.params[var] = ""
+            with cols[idx]:
+                st.session_state.params[var] = st.text_input(
+                    f"{var}", 
+                    value=st.session_state.params[var],
+                    key=f"step_{st.session_state.current_step}_{var}"
+                )
 
 
 def process_boolean_variables(current_element):
@@ -278,25 +286,22 @@ def process_boolean_variables(current_element):
     
     # 根据选择显示对应的变量
     if st.session_state.params[current_element['condition_var']] == "true":
-        for var in current_element["true_variables"]:
-            if var not in st.session_state.params:
-                st.session_state.params[var] = ""
-            
-            st.session_state.params[var] = st.text_input(
-                f"{var}", 
-                value=st.session_state.params[var],
-                key=f"step_{st.session_state.current_step}_{var}"
-            )
+        variables = current_element["true_variables"]
     else:
-        for var in current_element["false_variables"]:
+        variables = current_element["false_variables"]
+
+    for i in range(0, len(variables), 3):
+        cols = st.columns(3)
+        chunk = variables[i:i+3]
+        for idx, var in enumerate(chunk):
             if var not in st.session_state.params:
                 st.session_state.params[var] = ""
-            
-            st.session_state.params[var] = st.text_input(
-                f"{var}", 
-                value=st.session_state.params[var],
-                key=f"step_{st.session_state.current_step}_{var}"
-            )
+            with cols[idx]:
+                st.session_state.params[var] = st.text_input(
+                    f"{var}", 
+                    value=st.session_state.params[var],
+                    key=f"step_{st.session_state.current_step}_{var}"
+                )
 
 
 def display_navigation_buttons(extracted_structure):
