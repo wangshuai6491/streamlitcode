@@ -149,24 +149,42 @@ def render_template(template, params):
 def load_template():
     """加载用户上传的模板或选择的示例模板"""
     uploaded_file = st.file_uploader("选择Markdown模板文件", type=["md"])
-    example_choice = st.radio(
-        "或者选择示例模板",
-        ("测试模板"),
-        horizontal=True
-    )
+    
+    try:
+        # 获取当前脚本所在目录
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        # 拼接示例模板文件夹路径
+        template_dir = os.path.join(script_dir, "../static/公文")
+        
+        # 列出文件夹中的所有md文件
+        if os.path.exists(template_dir):
+            md_files = [f for f in os.listdir(template_dir) if f.endswith('.md')]
+            if md_files:
+                example_choice = st.radio(
+                    "或者选择示例模板",
+                    md_files,
+                    horizontal=True
+                )
+            else:
+                example_choice = None
+                st.warning("示例模板文件夹中没有找到Markdown文件")
+        else:
+            example_choice = None
+            st.error("示例模板文件夹不存在")
+    except Exception as e:
+        st.error(f"获取示例模板列表失败: {e}")
+        example_choice = None
     
     if uploaded_file:
         return uploaded_file.getvalue().decode("utf-8")
-    elif example_choice == "测试模板":
+    elif example_choice:
         try:
-            # 获取当前脚本所在目录
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            # 拼接示例模板文件路径
-            template_path = os.path.join(script_dir, "../static/公文/测试.md")
+            # 拼接选中的示例模板文件路径
+            template_path = os.path.join(script_dir, "../static/公文", example_choice)
             with open(template_path, "r", encoding="utf-8") as f:
                 return f.read()
         except Exception as e:
-            st.error(f"读取示例模板失败: {e}")
+            st.error(f"读取示例模板 {example_choice} 失败: {e}")
     return None
 
 
@@ -324,7 +342,7 @@ def main():
     st.title("Jinja2模板自动化生成工具")
     
     # 1. 上传模板文件
-    st.subheader("步骤1: 上传Markdown模板")
+    st.subheader("步骤1: 上传或选择带有Jinja2特性的Markdown模板")
     template_content = load_template()
     
     if template_content:
