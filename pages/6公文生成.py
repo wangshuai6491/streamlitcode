@@ -95,24 +95,36 @@ def extract_jinja_variables(template):
             cleaned_vars = [v.strip() for v in var_matches]
             
             if current_condition:
-                # 在当前条件块中添加变量
+                # 在当前条件块中添加变量，并去重
                 if condition_type == '条件变量':
                     if current_branch is not None and current_branch < len(current_condition['options']):
-                        current_condition['options'][current_branch]['variables'].extend(cleaned_vars)
+                        # 添加新变量但避免重复
+                        for var in cleaned_vars:
+                            if var not in current_condition['options'][current_branch]['variables']:
+                                current_condition['options'][current_branch]['variables'].append(var)
                 elif condition_type == '布尔变量':
                     if current_branch == 'true':
-                        current_condition['true_variables'].extend(cleaned_vars)
+                        # 添加新变量但避免重复
+                        for var in cleaned_vars:
+                            if var not in current_condition['true_variables']:
+                                current_condition['true_variables'].append(var)
                     else:
-                        current_condition['false_variables'].extend(cleaned_vars)
+                        # 添加新变量但避免重复
+                        for var in cleaned_vars:
+                            if var not in current_condition['false_variables']:
+                                current_condition['false_variables'].append(var)
             else:
-                # 不在任何条件块中，添加到常规变量
+                # 不在任何条件块中，添加到常规变量，并去重
                 # 检查是否可以将变量添加到现有的常规变量组
                 if results and results[-1]['type'] == '常规变量':
-                    results[-1]['variables'].extend(cleaned_vars)
+                    # 添加新变量但避免重复
+                    for var in cleaned_vars:
+                        if var not in results[-1]['variables']:
+                            results[-1]['variables'].append(var)
                 else:
                     results.append({
                         'type': '常规变量',
-                        'variables': cleaned_vars
+                        'variables': cleaned_vars.copy()  # 创建副本以避免引用问题
                     })
     
     # 处理可能未关闭的条件块
