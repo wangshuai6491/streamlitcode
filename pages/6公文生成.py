@@ -1,7 +1,7 @@
 import streamlit as st
-from jinja2 import Environment, meta
-import re, json, os
-
+import re
+import os
+from jinja2 import Template, TemplateSyntaxError
 
 def extract_jinja_variables(template):
     results = []
@@ -121,62 +121,30 @@ def extract_jinja_variables(template):
     
     return results
 
-
 def render_template(template, params):
-    """简单的模板渲染函数"""
-    for key, value in params.items():
-        placeholder = "{{ " + key + " }}"
-        template = template.replace(placeholder, value)
+    """使用Jinja2库进行通用模板渲染
     
-    # 处理条件语句（简化版）
-    if "项目状态" in params:
-        if params["项目状态"] == "完成":
-            template = template.replace("{% if 项目状态 == \"完成\" %}", "")
-            template = template.replace("{% elif 项目状态 == \"进行中\" %}", "")
-            template = template.replace("{% else %}", "")
-            template = template.replace("{% endif %}", "")
-        elif params["项目状态"] == "进行中":
-            template = template.replace("{% if 项目状态 == \"完成\" %}", "")
-            template = template.replace("{% elif 项目状态 == \"进行中\" %}", "")
-            template = template.replace("{% else %}", "")
-            template = template.replace("{% endif %}", "")
-        else:
-            template = template.replace("{% if 项目状态 == \"完成\" %}", "")
-            template = template.replace("{% elif 项目状态 == \"进行中\" %}", "")
-            template = template.replace("{% else %}", "")
-            template = template.replace("{% endif %}", "")
-    
-    # 处理布尔变量
-    if "显示详情" in params:
-        if params["显示详情"] == "true":
-            template = template.replace("{% if 显示详情 %}", "")
-            template = template.replace("{% else %}", "")
-            template = template.replace("{% endif %}", "")
-        else:
-            template = template.replace("{% if 显示详情 %}", "")
-            template = template.replace("{% else %}", "")
-            template = template.replace("{% endif %}", "")
-    
-    # 处理项目所在地
-    if "项目所在地" in params:
-        if params["项目所在地"] == "本地":
-            template = template.replace("{% if 项目所在地 == \"本地\" %}", "")
-            template = template.replace("{% elif 项目所在地 == \"外地\" %}", "")
-            template = template.replace("{% else %}", "")
-            template = template.replace("{% endif %}", "")
-        elif params["项目所在地"] == "外地":
-            template = template.replace("{% if 项目所在地 == \"本地\" %}", "")
-            template = template.replace("{% elif 项目所在地 == \"外地\" %}", "")
-            template = template.replace("{% else %}", "")
-            template = template.replace("{% endif %}", "")
-        else:
-            template = template.replace("{% if 项目所在地 == \"本地\" %}", "")
-            template = template.replace("{% elif 项目所在地 == \"外地\" %}", "")
-            template = template.replace("{% else %}", "")
-            template = template.replace("{% endif %}", "")
-    
-    return template
-
+    Args:
+        template (str): Jinja2格式的模板字符串
+        params (dict): 包含变量值的字典
+        
+    Returns:
+        str: 渲染后的结果字符串
+    """
+    try:
+        # 创建Jinja2模板对象
+        jinja_template = Template(template)
+        
+        # 使用提供的参数渲染模板
+        rendered_content = jinja_template.render(**params)
+        
+        return rendered_content
+    except TemplateSyntaxError as e:
+        st.error(f"模板语法错误: {e}")
+        return f"错误: 模板语法错误 - {e}"
+    except Exception as e:
+        st.error(f"渲染模板时出错: {e}")
+        return f"错误: 渲染模板时出错 - {e}"
 
 def main():
     st.title("Jinja2模板自动化生成工具")
