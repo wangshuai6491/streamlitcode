@@ -1,6 +1,5 @@
 import streamlit as st
-import re
-import os
+import os, json, re
 from jinja2 import Template, TemplateSyntaxError
 
 def extract_jinja_variables(template):
@@ -323,7 +322,16 @@ def display_navigation_buttons(extracted_structure):
 def display_results(template_content):
     """显示渲染结果"""
     if 'show_results' in st.session_state and st.session_state.show_results:
-        with st.expander("已提供的参数", expanded=False):
+        with st.expander("参数查看、复制、保存", expanded=False):
+            # 添加保存参数的按钮
+            # 2. 一键下载
+            json_str = json.dumps(st.session_state.params, ensure_ascii=False, indent=2)
+            st.download_button(
+                label="💾 保存参数到本地",
+                data=json_str.encode('utf-8'),
+                file_name='params.json',
+                mime='application/json'
+            )
             st.json(st.session_state.params)
         # 渲染模板
         rendered_text = render_template(template_content, st.session_state.params)
@@ -396,28 +404,43 @@ def main():
         extracted_structure = extract_jinja_variables(template_content)
     
         # 3. 收集变量值
+        tabs = st.tabs(["在线填写参数", "上传JSON参数"])
         
-        # 初始化session_state
-        if 'current_step' not in st.session_state:
-            st.session_state.current_step = 0
-            st.session_state.params = {}
-        # 显示当前步骤
-        st.subheader(f"步骤2: 填写变量值，当前 {st.session_state.current_step + 1}/{len(extracted_structure)}")
+        with tabs[0]:
+            # 初始化session_state
+            if 'current_step' not in st.session_state:
+                st.session_state.current_step = 0
+                st.session_state.params = {}
+            # 显示当前步骤
+            st.subheader(f"步骤2: 填写变量值，当前 {st.session_state.current_step + 1}/{len(extracted_structure)}")
+            
+            # 获取当前步骤的元素
+            current_element = extracted_structure[st.session_state.current_step]
+            
+            # 处理不同类型的元素
+            if current_element["type"] == "常规变量":
+                process_regular_variables(current_element)
+            elif current_element["type"] == "条件变量":
+                process_conditional_variables(current_element)
+            elif current_element["type"] == "布尔变量":
+                process_boolean_variables(current_element)
+            
+            # 显示导航按钮
+            display_navigation_buttons(extracted_structure)
         
-        # 获取当前步骤的元素
-        current_element = extracted_structure[st.session_state.current_step]
-        
-        # 处理不同类型的元素
-        if current_element["type"] == "常规变量":
-            process_regular_variables(current_element)
-        elif current_element["type"] == "条件变量":
-            process_conditional_variables(current_element)
-        elif current_element["type"] == "布尔变量":
-            process_boolean_variables(current_element)
-        
-        # 显示导航按钮
-        display_navigation_buttons(extracted_structure)
-        
+        with tabs[1]:
+            st.subheader("上传JSON参数文件")
+            uploaded_json = st.file_uploader("上传包含参数的JSON文件", type=["json"])
+            if uploaded_json:
+                try:
+                    json_data = json.load(uploaded_json)
+                    st.session_state.params = json_data
+                    st.success("JSON参数加载成功！")
+                    st.session_state.current_step = len(extracted_structure) - 1
+                    st.session_state.show_results = True
+                except Exception as e:
+                    st.error(f"加载JSON文件失败: {e}")
+
         # 显示结果
         display_results(template_content)
 
