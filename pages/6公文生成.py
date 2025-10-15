@@ -29,18 +29,48 @@ def extract_conditional_blocks(template_content):
     # 解析条件语句的正则表达式
     if_pattern = r'\{%\s*if\s+(\w+)(?:\s*(==|!=|<=|>=|<|>)\s+(?:"([^"]*)"|\'([^\']*)\'|(\w+)))\s*%\}'
     elif_pattern = r'\{%\s*elif\s+(\w+)(?:\s*(==|!=|<=|>=|<|>)\s+(?:"([^"]*)"|\'([^\']*)\'|(\w+)))\s*%\}'
+    bool_if_pattern = r'\{%\s*if\s+(\w+)\s*%\}'  # 简单的布尔条件判断
     
     # 收集所有条件信息
     conditions = []
     condition_groups = []
+    bool_conditions = []
     current_group = []
     
-    # 先处理if语句
+    # 先处理简单的布尔条件判断
+    for match in re.finditer(bool_if_pattern, template_content):
+        var_name = match.group(1)
+        
+        # 检查条件块内的变量
+        block_content = get_block_content(template_content, match.start(), is_if=True)
+        block_vars = extract_variables_in_order(block_content)
+        
+        bool_condition = {
+            'type': 'boolean',
+            'var_name': var_name,
+            'block_vars': [var[0] for var in block_vars],  # 只保留变量名
+            'start_pos': match.start(),
+            'end_pos': match.end()
+        }
+        
+        bool_conditions.append(bool_condition)
+    
+    # 处理if语句
     for match in re.finditer(if_pattern, template_content):
         var_name = match.group(1)
         operator = match.group(2)
         # 获取比较值（处理引号和非引号情况）
         value = match.group(3) or match.group(4) or match.group(5)
+        
+        # 检查是否已经被识别为布尔条件
+        is_boolean = False
+        for bc in bool_conditions:
+            if bc['var_name'] == var_name and bc['start_pos'] == match.start():
+                is_boolean = True
+                break
+        
+        if is_boolean:
+            continue
         
         # 检查条件块内的变量
         block_content = get_block_content(template_content, match.start(), is_if=True)
@@ -116,7 +146,7 @@ def extract_conditional_blocks(template_content):
     for group in condition_groups:
         conditions.extend(group)
     
-    return conditions, condition_groups
+    return conditions, condition_groups, bool_conditions
 
 
 def get_block_content(template_content, start_pos, is_if=False, is_elif=False, is_else=False):
@@ -163,6 +193,139 @@ def render_template(template_content, variables):
     return template.render(**filled_vars)
 
 
+def get_active_block_vars(condition_groups, condition_values):
+    """
+    根据用户选择的条件值，返回激活条件块中的变量名列表
+    """
+    active_vars = []
+
+    for group in condition_groups:
+        if not group:
+            continue
+
+        condition_var = group[0]['var_name']
+        user_value = condition_values.get(condition_var)
+
+        active_block = None
+
+        for block in group:
+            if block['type'] == 'if':
+                if block['operator'] == '==' and user_value == block['value']:
+                    active_block = block
+                    break
+            elif block['type'] == 'elif':
+                if block['operator'] == '==' and user_value == block['value']:
+                    active_block = block
+                    break
+            elif block['type'] == 'else':
+                # 前面条件都不满足时，else 激活
+                all_prev_false = True
+                for prev in group:
+                    if prev == block:
+                        break
+                    if prev['operator'] == '==' and user_value == prev['value']:
+                        all_prev_false = False
+                        break
+                if all_prev_false:
+                    active_block = block
+                    break
+
+        if active_block and active_block['block_vars']:
+            active_vars.extend(active_block['block_vars'])
+
+    return list(set(active_vars))  # 去重
+
+
+def extract_variables_with_structure(template_content):
+    """提取模板中的变量并按照结构组织成列表"""
+    # 提取所有变量及其位置
+    all_variables_with_pos = extract_variables_in_order(template_content)
+    
+    # 提取条件块和布尔条件
+    conditional_blocks, condition_groups, bool_conditions = extract_conditional_blocks(template_content)
+    
+    # 收集所有条件变量
+    condition_vars = set()
+    for block in conditional_blocks:
+        condition_vars.add(block['var_name'])
+    
+    # 收集所有布尔变量
+    bool_vars = set()
+    for bc in bool_conditions:
+        bool_vars.add(bc['var_name'])
+    
+    # 确定第一个条件语句的位置
+    first_condition_pos = float('inf')
+    all_conditions = conditional_blocks + bool_conditions
+    if all_conditions:
+        first_condition_pos = min(bc['start_pos'] for bc in all_conditions)
+    
+    # 组织变量结构
+    variable_structure = []
+    
+    # 1. 添加常规变量部分（条件语句之前的变量）
+    pre_condition_vars = [v for v, p in all_variables_with_pos
+                          if v not in condition_vars and v not in bool_vars and p < first_condition_pos]
+    
+    if pre_condition_vars:
+        variable_structure.append({
+            'type': '常规变量',
+            'variables': pre_condition_vars
+        })
+    
+    # 2. 处理条件变量部分（if-elif-else结构）
+    for group in condition_groups:
+        if not group:
+            continue
+        
+        cond_var = group[0]['var_name']
+        options = []
+        
+        for block in group:
+            if block['type'] == 'if' or block['type'] == 'elif':
+                # 直接使用该条件块内的变量，不进行额外过滤
+                options.append({
+                    'value': block['value'],
+                    'variables': block['block_vars']
+                })
+            elif block['type'] == 'else':
+                options.append({
+                    'value': '其他',
+                    'variables': block['block_vars']
+                })
+        
+        variable_structure.append({
+            'type': '条件变量',
+            'condition_var': cond_var,
+            'options': options
+        })
+    
+    # 3. 处理布尔变量部分（简单的if条件判断）
+    for bc in bool_conditions:
+        variable_structure.append({
+            'type': '布尔变量',
+            'condition_var': bc['var_name'],
+            'true_variables': bc['block_vars']
+        })
+    
+    # 4. 处理条件语句之后的变量（如果有的话）
+    last_condition_pos = 0
+    if all_conditions:
+        last_condition_pos = max(bc['end_pos'] for bc in all_conditions)
+    
+    post_condition_vars = [v for v, p in all_variables_with_pos
+                           if v not in condition_vars and v not in bool_vars and p > last_condition_pos]
+    
+    if post_condition_vars:
+        variable_structure.append({
+            'type': '常规变量',
+            'variables': post_condition_vars
+        })
+    
+    print(variable_structure)
+    return variable_structure
+
+
 def main():
     st.title("Jinja2模板自动化生成工具")
     
@@ -198,16 +361,11 @@ def main():
         all_variables_with_pos = extract_variables_in_order(template_content)
         all_variables = [var[0] for var in all_variables_with_pos]
         
-        # 提取条件块和条件组
-        conditional_blocks, condition_groups = extract_conditional_blocks(template_content)
+        # 提取条件块、条件组和布尔条件
+        conditional_blocks, condition_groups, bool_conditions = extract_conditional_blocks(template_content)
         
-        # 收集所有条件变量
-        condition_vars = set()
-        for block in conditional_blocks:
-            condition_vars.add(block['var_name'])
-        
-        # 分离普通变量和条件变量
-        normal_vars = [var for var in all_variables if var not in condition_vars]
+        # 使用新的结构提取变量
+        variable_structure = extract_variables_with_structure(template_content)
         
         st.write(f"共发现 {len(all_variables)} 个唯一变量（按出现顺序）:")
         st.code(", ".join(all_variables))
@@ -215,145 +373,124 @@ def main():
         if conditional_blocks:
             st.write(f"发现 {len(condition_groups)} 个条件判断组，共 {len(conditional_blocks)} 个条件判断块")
         
-        # 3. 收集变量值 - 分阶段展示
+        if bool_conditions:
+            st.write(f"发现 {len(bool_conditions)} 个布尔条件判断")
+        
+        # 3. 收集变量值
         st.subheader("步骤3: 填写变量值")
-        var_values = {}
         
-        # 首先，找出模板中第一个条件块的位置
-        first_condition_pos = float('inf')
-        if conditional_blocks:
-            first_condition_pos = min(block['start_pos'] for block in conditional_blocks)
-        
-        # 找出在第一个条件块之前出现的普通变量
-        pre_condition_vars = []
-        for var, pos in all_variables_with_pos:
-            if var not in condition_vars and pos < first_condition_pos:
-                pre_condition_vars.append(var)
-        
-        # 处理第一个条件块之前的变量
+        # ---------- 1. 表单开始 ----------
         with st.form("variable_form"):
-            # 显示第一个条件块之前的变量
-            if pre_condition_vars:
-                st.write("请填写以下基本变量:")
-                cols = st.columns(2)
-                for i, var in enumerate(pre_condition_vars):
-                    with cols[i % 2]:
-                        var_values[var] = st.text_input(f"变量: {var}", value="", placeholder="不填将用*代替")
+            var_values = {}
             
-            # 然后处理条件选择
-            if condition_groups:
-                st.write("\n请选择以下条件:")
+            # 为每个条件变量初始化session_state
+            for item in variable_structure:
+                if item['type'] == '条件变量':
+                    cond_var = item['condition_var']
+                    if cond_var not in st.session_state:
+                        st.session_state[cond_var] = None
+                elif item['type'] == '布尔变量':
+                    cond_var = item['condition_var']
+                    if cond_var not in st.session_state:
+                        st.session_state[cond_var] = False
+            
+            # 逐个处理变量结构中的元素
+            for item in variable_structure:
+                if item['type'] == '常规变量':
+                    # 显示常规变量，使用两列布局
+                    st.write("📌 常规变量")
+                    # 显示提取的变量结构，用于调试
+                    st.subheader("变量结构调试信息")
+                    st.json(variable_structure)
+                    cols = st.columns(2)
+                    for i, v in enumerate(item['variables']):
+                        with cols[i % 2]:
+                            var_values[v] = st.text_input(f"{v}", placeholder="不填用*代替")
                 
-                # 处理条件组
-                handled_condition_vars = set()
-                
-                for group in condition_groups:
-                    # 获取条件组的变量名
-                    if group:
-                        var_name = group[0]['var_name']
-                        if var_name not in handled_condition_vars:
-                            handled_condition_vars.add(var_name)
-                            
-                            # 检查是否为布尔类型条件
-                            is_boolean_condition = all(block['operator'] is None for block in group)
-                            
-                            if is_boolean_condition:
-                                # 布尔类型条件，提供是/否选项
-                                choice = st.selectbox(f"条件变量: {var_name}", ("是", "否"))
-                                var_values[var_name] = choice == "是"  # 转换为布尔值
-                            else:
-                                # 获取此条件变量可能的所有值
-                                possible_values = []
-                                for block in group:
-                                    if block['type'] != 'else' and block['value']:
-                                        possible_values.append(block['value'])
-                                
-                                # 添加else作为一个选项
-                                possible_values.append("其他")
-                                
-                                # 让用户选择值
-                                choice = st.selectbox(f"条件变量: {var_name}", possible_values)
-                                
-                                if choice == "其他":
-                                    var_values[var_name] = st.text_input(f"请输入 {var_name} 的值", key=f"{var_name}_custom")
+                elif item['type'] == '条件变量':
+                    # 显示条件变量，使用折叠块
+                    cond_var = item['condition_var']
+                    selected = st.session_state.get(cond_var)
+                    
+                    title = f"📂 条件组：{cond_var}" + (f"（当前选中：{selected}）" if selected else "")
+                    with st.expander(title, expanded=(selected is not None)):
+                        # 获取所有可能的选项值
+                        possible_values = [opt['value'] for opt in item['options']]
+                        possible_values.append("自定义")
+                        
+                        # 确定当前选中值的索引
+                        if selected in possible_values:
+                            index = possible_values.index(selected)
+                        else:
+                            index = 0
+                        
+                        # 创建选择框
+                        selected_value = st.selectbox(
+                            f"请选择 {cond_var}",
+                            possible_values,
+                            index=index,
+                            key=f"sel_{cond_var}"
+                        )
+                        
+                        # 处理自定义值
+                        if selected_value == "自定义":
+                            custom_val = st.text_input(f"请输入 {cond_var} 的自定义值", key=f"custom_{cond_var}")
+                            st.session_state[cond_var] = custom_val
+                        else:
+                            st.session_state[cond_var] = selected_value
+                        
+                        # 显示当前选项对应的变量
+                        current_value = custom_val if selected_value == "自定义" else selected_value
+                        for opt in item['options']:
+                            if opt['value'] == current_value:
+                                if opt['variables']:
+                                    st.write("**需要填写的变量：**")
+                                    cols = st.columns(2)
+                                    for i, v in enumerate(opt['variables']):
+                                        with cols[i % 2]:
+                                            var_values[v] = st.text_input(f"{v}", placeholder="不填用*代替")
                                 else:
-                                    var_values[var_name] = choice
-            
-            # 根据条件变量的值，决定显示哪些条件块内的变量
-            st.write("\n请填写以下条件相关变量:")
-            
-            # 创建一个字典，映射条件变量到其值
-            condition_values = {}
-            for var in condition_vars:
-                if var in var_values:
-                    condition_values[var] = var_values[var]
-                else:
-                    # 默认设为False
-                    condition_values[var] = False
-            
-            # 找出所有应该显示的变量
-            visible_vars = set()
-            
-            # 首先添加所有普通变量（不包括已经显示的pre_condition_vars）
-            for var in normal_vars:
-                if var not in pre_condition_vars:
-                    visible = True
+                                    st.info("该选项下无额外变量")
+                                break
+                        # 处理未匹配到的情况
+                        else:
+                            st.info("请选择一个有效的选项")
+                
+                elif item['type'] == '布尔变量':
+                    # 显示布尔变量，使用折叠块
+                    cond_var = item['condition_var']
+                    show = st.session_state.get(cond_var, False)
                     
-                    # 检查变量是否在某个条件块中
-                    in_any_condition_block = False
+                    # 创建复选框来控制是否显示详情
+                    show_details = st.checkbox(f"是否显示 {cond_var}", value=show, key=f"bool_{cond_var}")
+                    st.session_state[cond_var] = show_details
                     
-                    for block in conditional_blocks:
-                        if var in block['block_vars']:
-                            in_any_condition_block = True
-                            # 检查条件是否满足
-                            condition_value = condition_values.get(block['var_name'], False)
-                            
-                            # 根据条件类型判断
-                            if block['type'] == 'if':
-                                if block['operator'] == "==" and condition_value != block['value']:
-                                    visible = False
-                            elif block['type'] == 'elif':
-                                if block['operator'] == "==" and condition_value != block['value']:
-                                    visible = False
-                            # else不需要判断条件
-                            
-                            # 一旦找到变量所在的条件块，就可以停止检查
-                            break
-                    
-                    # 如果变量不在任何条件块中，或者所在的条件块条件满足，则显示
-                    if not in_any_condition_block or visible:
-                        visible_vars.add(var)
+                    # 如果选择显示，则展示对应的变量
+                    if show_details:
+                        if item['true_variables']:
+                            st.write("**需要填写的变量：**")
+                            cols = st.columns(2)
+                            for i, v in enumerate(item['true_variables']):
+                                with cols[i % 2]:
+                                    var_values[v] = st.text_input(f"{v}", placeholder="不填用*代替")
+                        else:
+                            st.info("该条件下无额外变量")
             
-            # 按照模板中的顺序显示可见的变量
-            sorted_visible_vars = []
-            for var, pos in all_variables_with_pos:
-                if var in visible_vars:
-                    sorted_visible_vars.append(var)
-            
-            # 显示变量输入框
-            if sorted_visible_vars:
-                cols = st.columns(2)
-                for i, var in enumerate(sorted_visible_vars):
-                    with cols[i % 2]:
-                        var_values[var] = st.text_input(f"变量: {var}", value="", placeholder="不填将用*代替")
-            else:
-                st.info("根据您的条件选择，没有需要填写的条件相关变量")
-            
+            # 提交按钮
             submitted = st.form_submit_button("生成文档")
         
-        # 4. 渲染并下载
+        # ---------- 2. 渲染 & 下载 ----------
         if submitted:
-            st.subheader("生成结果")
+            # 把 session_state 里的条件值合并进来
+            for item in variable_structure:
+                if item['type'] == '条件变量' or item['type'] == '布尔变量':
+                    cond_var = item['condition_var']
+                    var_values[cond_var] = st.session_state.get(cond_var)
+        
             rendered = render_template(template_content, var_values)
-            
-            st.text_area("渲染结果预览", rendered, height=300)
-            
-            st.download_button(
-                label="下载生成的Markdown文件",
-                data=rendered,
-                file_name="generated_document.md",
-                mime="text/markdown"
-            )
+            st.subheader("生成结果")
+            st.text_area("预览", rendered, height=300)
+            st.download_button("下载Markdown", rendered, file_name="generated.md")
 
 if __name__ == "__main__":
     main()
