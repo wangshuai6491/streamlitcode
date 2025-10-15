@@ -323,24 +323,54 @@ def display_navigation_buttons(extracted_structure):
 def display_results(template_content):
     """显示渲染结果"""
     if 'show_results' in st.session_state and st.session_state.show_results:
-        st.subheader("已提供的参数")
-        st.json(st.session_state.params)
-        
-        st.subheader("模板渲染")
-        
+        with st.expander("已提供的参数", expanded=False):
+            st.json(st.session_state.params)
         # 渲染模板
         rendered_text = render_template(template_content, st.session_state.params)
         
         # 显示渲染结果
-        st.text_area("渲染结果", rendered_text, height=400)
+        st.text_area("结果", rendered_text, height=400)
+        # 创建两列布局
+        col1, col2 = st.columns(2)
         
-        # 提供下载按钮
-        st.download_button(
-            label="下载渲染结果",
-            data=rendered_text,
-            file_name="rendered_template.txt",
-            mime="text/plain"
-        )
+        # 在第一列放置下载按钮
+        with col1:
+            st.download_button(
+                label="下载渲染结果",
+                data=rendered_text,
+                file_name="渲染结果.txt",
+                mime="text/plain"
+            )
+        # 在第二列放置复制到剪贴板按钮
+        with col2:
+            st.components.v1.html(
+                f"""
+                <button id="copyBtn" style="padding:0.4rem 1rem;font-size:1rem;cursor:pointer;">
+                    📋 复制到剪贴板
+                </button>
+                <span id="msg" style="margin-left:0.8rem;color:green;"></span>
+
+                <script>
+                const btn   = document.getElementById('copyBtn');
+                const msgEl = document.getElementById('msg');
+
+                btn.addEventListener('click', async () => {{
+                    try {{
+                        // 真正用户激活的上下文里写剪贴板
+                        await navigator.clipboard.writeText(`{rendered_text}`);
+                        msgEl.textContent = '✅ 复制成功！';
+                        msgEl.style.color = 'green';
+                    }} catch (err) {{
+                        msgEl.textContent = '❌ 复制失败：' + err;
+                        msgEl.style.color = 'red';
+                    }}
+                    // 3 秒后清除提示
+                    setTimeout(() => msgEl.textContent = '', 3000);
+                }});
+                </script>
+                """,
+                height=45,  # 只留按钮高度
+            )
         
         # 重置按钮
         if st.button("重新开始"):
@@ -359,14 +389,13 @@ def main():
         extracted_structure = extract_jinja_variables(template_content)
     
         # 3. 收集变量值
-        st.subheader("步骤2: 填写变量值")
+        
         # 初始化session_state
         if 'current_step' not in st.session_state:
             st.session_state.current_step = 0
             st.session_state.params = {}
-        
         # 显示当前步骤
-        st.subheader(f"步骤 {st.session_state.current_step + 1}/{len(extracted_structure)}")
+        st.subheader(f"步骤2: 填写变量值，当前 {st.session_state.current_step + 1}/{len(extracted_structure)}")
         
         # 获取当前步骤的元素
         current_element = extracted_structure[st.session_state.current_step]
@@ -384,6 +413,6 @@ def main():
         
         # 显示结果
         display_results(template_content)
-        
+
 if __name__ == "__main__":
     main()
