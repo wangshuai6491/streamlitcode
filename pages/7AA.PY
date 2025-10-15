@@ -1,3 +1,10 @@
+import re
+import json
+
+
+# 测试代码
+if __name__ == "__main__":
+    template = """
 # 测试用例模板集
 
 ## 1. 基础变量替换测试模板
@@ -46,3 +53,7 @@
 
 # 特殊字符测试
 - 带引号文本: {{ 带引号文本 }}
+"""
+
+    extracted = extract_jinja_variables(template)
+    print(json.dumps(extracted, indent=2, ensure_ascii=False))
