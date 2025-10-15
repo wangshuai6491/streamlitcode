@@ -353,13 +353,20 @@ def display_results(template_content):
                 <script>
                 const btn   = document.getElementById('copyBtn');
                 const msgEl = document.getElementById('msg');
+                // 获取结果文本区域元素
+                const resultTextArea = parent.document.querySelector('[data-testid="stTextArea"] textarea');
 
                 btn.addEventListener('click', async () => {{
                     try {{
-                        // 真正用户激活的上下文里写剪贴板
-                        await navigator.clipboard.writeText(`{rendered_text}`);
-                        msgEl.textContent = '✅ 复制成功！';
-                        msgEl.style.color = 'green';
+                        if (resultTextArea) {{
+                            // 从结果文本区域获取内容并复制到剪贴板
+                            await navigator.clipboard.writeText(resultTextArea.value);
+                            msgEl.textContent = '✅ 复制成功！';
+                            msgEl.style.color = 'green';
+                        }} else {{
+                            msgEl.textContent = '❌ 未找到结果内容！';
+                            msgEl.style.color = 'red';
+                        }}
                     }} catch (err) {{
                         msgEl.textContent = '❌ 复制失败：' + err;
                         msgEl.style.color = 'red';
