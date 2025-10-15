@@ -434,7 +434,7 @@ def main():
             display_navigation_buttons(extracted_structure)
         
         with tabs[1]:
-            st.subheader("上传JSON参数文件")
+            st.subheader("步骤2:上传JSON参数文件")
             uploaded_json = st.file_uploader("上传包含参数的JSON文件", type=["json"])
             if uploaded_json:
                 try:
