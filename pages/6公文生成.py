@@ -146,21 +146,17 @@ def render_template(template, params):
         st.error(f"渲染模板时出错: {e}")
         return f"错误: 渲染模板时出错 - {e}"
 
-def main():
-    st.title("Jinja2模板自动化生成工具")
-    # 1. 上传模板文件
-    st.subheader("步骤1: 上传Markdown模板")
+def load_template():
+    """加载用户上传的模板或选择的示例模板"""
     uploaded_file = st.file_uploader("选择Markdown模板文件", type=["md"])
-    # 也可以选择示例模板
-    st.subheader("或者选择示例模板")
     example_choice = st.radio(
-        "选择示例模板",
+        "或者选择示例模板",
         ("测试模板"),
         horizontal=True
     )
-    template_content = None
+    
     if uploaded_file:
-        template_content = uploaded_file.getvalue().decode("utf-8")
+        return uploaded_file.getvalue().decode("utf-8")
     elif example_choice == "测试模板":
         try:
             # 获取当前脚本所在目录
@@ -168,20 +164,175 @@ def main():
             # 拼接示例模板文件路径
             template_path = os.path.join(script_dir, "../static/公文/测试.md")
             with open(template_path, "r", encoding="utf-8") as f:
-                template_content = f.read()
+                return f.read()
         except Exception as e:
             st.error(f"读取示例模板失败: {e}")
+    return None
+
+
+def display_variable_analysis(template_content):
+    """显示模板变量和条件分析结果"""
+    st.subheader("步骤2: 变量和条件分析结果")
+    return extract_jinja_variables(template_content)
+
+
+def process_regular_variables(current_element):
+    """处理常规变量输入"""
+    st.markdown("### 常规变量")
+    st.write("请提供以下变量的值：")
+    
+    for var in current_element["variables"]:
+        if var not in st.session_state.params:
+            st.session_state.params[var] = ""
+        
+        st.session_state.params[var] = st.text_input(
+            f"请输入 `{var}` 的值", 
+            value=st.session_state.params[var],
+            key=f"step_{st.session_state.current_step}_{var}"
+        )
+
+
+def process_conditional_variables(current_element):
+    """处理条件变量输入"""
+    st.markdown(f"### 条件变量: {current_element['condition_var']}")
+    
+    # 选择条件值
+    options = [opt["value"] for opt in current_element["options"]]
+    if current_element['condition_var'] not in st.session_state.params:
+        st.session_state.params[current_element['condition_var']] = options[0]
+    
+    # 使用按钮组替代下拉选择框
+    st.markdown(f"请选择 `{current_element['condition_var']}` 的值：")
+    cols = st.columns(len(options))
+    for i, opt in enumerate(options):
+        with cols[i]:
+            if st.button(opt, key=f"btn_{current_element['condition_var']}_{opt}"):
+                st.session_state.params[current_element['condition_var']] = opt
+                st.rerun()
+    
+    # 显示当前选中的值
+    st.info(f"当前选择: {st.session_state.params[current_element['condition_var']]}")
+    
+    # 根据选择显示对应的变量
+    selected_option = next(
+        opt for opt in current_element["options"] 
+        if opt["value"] == st.session_state.params[current_element['condition_var']]
+    )
+    
+    st.write(f"请提供 `{st.session_state.params[current_element['condition_var']]}` 分支的变量值：")
+    
+    for var in selected_option["variables"]:
+        if var not in st.session_state.params:
+            st.session_state.params[var] = ""
+        
+        st.session_state.params[var] = st.text_input(
+            f"请输入 `{var}` 的值", 
+            value=st.session_state.params[var],
+            key=f"step_{st.session_state.current_step}_{var}"
+        )
+
+
+def process_boolean_variables(current_element):
+    """处理布尔变量输入"""
+    st.markdown(f"### 布尔变量: {current_element['condition_var']}")
+    
+    # 选择布尔值
+    if current_element['condition_var'] not in st.session_state.params:
+        st.session_state.params[current_element['condition_var']] = "true"
+    
+    show_details = st.checkbox(
+        f"是否显示详情 (`{current_element['condition_var']}`)", 
+        value=(st.session_state.params[current_element['condition_var']] == "true"),
+        key=f"step_{st.session_state.current_step}_bool"
+    )
+    
+    st.session_state.params[current_element['condition_var']] = "true" if show_details else "false"
+    
+    # 根据选择显示对应的变量
+    if show_details:
+        st.write("请提供详情变量值：")
+        for var in current_element["true_variables"]:
+            if var not in st.session_state.params:
+                st.session_state.params[var] = ""
+            
+            st.session_state.params[var] = st.text_input(
+                f"请输入 `{var}` 的值", 
+                value=st.session_state.params[var],
+                key=f"step_{st.session_state.current_step}_{var}"
+            )
+    else:
+        st.write("请提供概况变量值：")
+        for var in current_element["false_variables"]:
+            if var not in st.session_state.params:
+                st.session_state.params[var] = ""
+            
+            st.session_state.params[var] = st.text_input(
+                f"请输入 `{var}` 的值", 
+                value=st.session_state.params[var],
+                key=f"step_{st.session_state.current_step}_{var}"
+            )
+
+
+def display_navigation_buttons(extracted_structure):
+    """显示导航按钮"""
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.session_state.current_step > 0:
+            if st.button("上一步"):
+                st.session_state.current_step -= 1
+                st.rerun()
+    
+    with col2:
+        if st.session_state.current_step < len(extracted_structure) - 1:
+            if st.button("下一步"):
+                st.session_state.current_step += 1
+                st.rerun()
+        else:
+            if st.button("完成并渲染"):
+                st.session_state.show_results = True
+
+
+def display_results(template_content):
+    """显示渲染结果"""
+    if 'show_results' in st.session_state and st.session_state.show_results:
+        st.subheader("已提供的参数")
+        st.json(st.session_state.params)
+        
+        st.subheader("模板渲染")
+        
+        # 渲染模板
+        rendered_text = render_template(template_content, st.session_state.params)
+        
+        # 显示渲染结果
+        st.text_area("渲染结果", rendered_text, height=400)
+        
+        # 提供下载按钮
+        st.download_button(
+            label="下载渲染结果",
+            data=rendered_text,
+            file_name="rendered_template.txt",
+            mime="text/plain"
+        )
+        
+        # 重置按钮
+        if st.button("重新开始"):
+            st.session_state.clear()
+            st.rerun()
+
+def main():
+    st.title("Jinja2模板自动化生成工具")
+    
+    # 1. 上传模板文件
+    st.subheader("步骤1: 上传Markdown模板")
+    template_content = load_template()
     
     if template_content:
         # 2. 提取变量和条件
-        st.subheader("步骤2: 变量和条件分析结果")
-        
-        # 变量提取
-        extracted_structure = extract_jinja_variables(template_content)
+        extracted_structure = display_variable_analysis(template_content)
     
         # 3. 收集变量值
         st.subheader("步骤3: 填写变量值")
-        # 开始让用户输入参数
         # 初始化session_state
         if 'current_step' not in st.session_state:
             st.session_state.current_step = 0
@@ -195,141 +346,16 @@ def main():
         
         # 处理不同类型的元素
         if current_element["type"] == "常规变量":
-            st.markdown("### 常规变量")
-            st.write("请提供以下变量的值：")
-            
-            for var in current_element["variables"]:
-                if var not in st.session_state.params:
-                    st.session_state.params[var] = ""
-                
-                st.session_state.params[var] = st.text_input(
-                    f"请输入 `{var}` 的值", 
-                    value=st.session_state.params[var],
-                    key=f"step_{st.session_state.current_step}_{var}"
-                )
-        
+            process_regular_variables(current_element)
         elif current_element["type"] == "条件变量":
-            st.markdown(f"### 条件变量: {current_element['condition_var']}")
-            
-            # 选择条件值
-            options = [opt["value"] for opt in current_element["options"]]
-            if current_element['condition_var'] not in st.session_state.params:
-                st.session_state.params[current_element['condition_var']] = options[0]
-            
-            # 使用按钮组替代下拉选择框
-            st.markdown(f"请选择 `{current_element['condition_var']}` 的值：")
-            cols = st.columns(len(options))
-            for i, opt in enumerate(options):
-                with cols[i]:
-                    if st.button(opt, key=f"btn_{current_element['condition_var']}_{opt}"):
-                        st.session_state.params[current_element['condition_var']] = opt
-                        st.rerun()
-            
-            # 显示当前选中的值
-            st.info(f"当前选择: {st.session_state.params[current_element['condition_var']]}")
-            
-            # 根据选择显示对应的变量
-            selected_option = next(
-                opt for opt in current_element["options"] 
-                if opt["value"] == st.session_state.params[current_element['condition_var']]
-            )
-            
-            st.write(f"请提供 `{st.session_state.params[current_element['condition_var']]}` 分支的变量值：")
-            
-            for var in selected_option["variables"]:
-                if var not in st.session_state.params:
-                    st.session_state.params[var] = ""
-                
-                st.session_state.params[var] = st.text_input(
-                    f"请输入 `{var}` 的值", 
-                    value=st.session_state.params[var],
-                    key=f"step_{st.session_state.current_step}_{var}"
-                )
-        
+            process_conditional_variables(current_element)
         elif current_element["type"] == "布尔变量":
-            st.markdown(f"### 布尔变量: {current_element['condition_var']}")
-            
-            # 选择布尔值
-            if current_element['condition_var'] not in st.session_state.params:
-                st.session_state.params[current_element['condition_var']] = "true"
-            
-            show_details = st.checkbox(
-                f"是否显示详情 (`{current_element['condition_var']}`)", 
-                value=(st.session_state.params[current_element['condition_var']] == "true"),
-                key=f"step_{st.session_state.current_step}_bool"
-            )
-            
-            st.session_state.params[current_element['condition_var']] = "true" if show_details else "false"
-            
-            # 根据选择显示对应的变量
-            if show_details:
-                st.write("请提供详情变量值：")
-                for var in current_element["true_variables"]:
-                    if var not in st.session_state.params:
-                        st.session_state.params[var] = ""
-                    
-                    st.session_state.params[var] = st.text_input(
-                        f"请输入 `{var}` 的值", 
-                        value=st.session_state.params[var],
-                        key=f"step_{st.session_state.current_step}_{var}"
-                    )
-            else:
-                st.write("请提供概况变量值：")
-                for var in current_element["false_variables"]:
-                    if var not in st.session_state.params:
-                        st.session_state.params[var] = ""
-                    
-                    st.session_state.params[var] = st.text_input(
-                        f"请输入 `{var}` 的值", 
-                        value=st.session_state.params[var],
-                        key=f"step_{st.session_state.current_step}_{var}"
-                    )
+            process_boolean_variables(current_element)
         
-        # 导航按钮
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if st.session_state.current_step > 0:
-                if st.button("上一步"):
-                    st.session_state.current_step -= 1
-                    st.rerun()
-        
-        with col2:
-            if st.session_state.current_step < len(extracted_structure) - 1:
-                if st.button("下一步"):
-                    st.session_state.current_step += 1
-                    st.rerun()
-            else:
-                if st.button("完成并渲染"):
-                    st.session_state.show_results = True
+        # 显示导航按钮
+        display_navigation_buttons(extracted_structure)
         
         # 显示结果
-        if 'show_results' in st.session_state and st.session_state.show_results:
-            st.subheader("已提供的参数")
-            st.json(st.session_state.params)
-            
-            st.subheader("模板渲染")
-            
-            # 示例模板
-            template = template_content
-            
-            # 渲染模板
-            rendered_text = render_template(template, st.session_state.params)
-            
-            # 显示渲染结果
-            st.text_area("渲染结果", rendered_text, height=400)
-            
-            # 提供下载按钮
-            st.download_button(
-                label="下载渲染结果",
-                data=rendered_text,
-                file_name="rendered_template.txt",
-                mime="text/plain"
-            )
-            
-            # 重置按钮
-            if st.button("重新开始"):
-                st.session_state.clear()
-                st.rerun()
+        display_results(template_content)
 if __name__ == "__main__":
     main()
