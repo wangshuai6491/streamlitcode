@@ -160,32 +160,37 @@ def render_template(template, params):
 
 def load_template():
     """加载用户上传的模板或选择的示例模板"""
-    uploaded_file = st.file_uploader("选择Markdown模板文件", type=["md"])
+    # 创建两列布局
+    col1, col2 = st.columns(2)
     
+    # 在第一列放置文件上传器
+    with col1:
+        uploaded_file = st.file_uploader("上传自定义Markdown模板文件", type=["md"])
+    
+    example_choice = None
     try:
         # 获取当前脚本所在目录
         script_dir = os.path.dirname(os.path.abspath(__file__))
         # 拼接示例模板文件夹路径
         template_dir = os.path.join(script_dir, "../static/公文")
         
-        # 列出文件夹中的所有md文件
-        if os.path.exists(template_dir):
-            md_files = [f for f in os.listdir(template_dir) if f.endswith('.md')]
-            if md_files:
-                example_choice = st.radio(
-                    "或者选择示例模板",
-                    md_files,
-                    horizontal=True
-                )
+        # 在第二列放置示例模板选择
+        with col2:
+            # 列出文件夹中的所有md文件
+            if os.path.exists(template_dir):
+                md_files = [f for f in os.listdir(template_dir) if f.endswith('.md')]
+                if md_files:
+                    example_choice = st.radio(
+                        "或者选择示例模板",
+                        md_files,
+                        horizontal=True
+                    )
+                else:
+                    st.warning("示例模板文件夹中没有找到Markdown文件")
             else:
-                example_choice = None
-                st.warning("示例模板文件夹中没有找到Markdown文件")
-        else:
-            example_choice = None
-            st.error("示例模板文件夹不存在")
+                st.error("示例模板文件夹不存在")
     except Exception as e:
         st.error(f"获取示例模板列表失败: {e}")
-        example_choice = None
     
     if uploaded_file:
         return uploaded_file.getvalue().decode("utf-8")
@@ -199,24 +204,16 @@ def load_template():
             st.error(f"读取示例模板 {example_choice} 失败: {e}")
     return None
 
-
-def display_variable_analysis(template_content):
-    """显示模板变量和条件分析结果"""
-    st.subheader("步骤2: 变量和条件分析结果")
-    return extract_jinja_variables(template_content)
-
-
 def process_regular_variables(current_element):
     """处理常规变量输入"""
-    st.markdown("### 常规变量")
-    st.write("请提供以下变量的值：")
+    st.write("请提供以下基础信息：")
     
     for var in current_element["variables"]:
         if var not in st.session_state.params:
             st.session_state.params[var] = ""
         
         st.session_state.params[var] = st.text_input(
-            f"请输入 `{var}` 的值", 
+            f"{var}", 
             value=st.session_state.params[var],
             key=f"step_{st.session_state.current_step}_{var}"
         )
@@ -224,15 +221,13 @@ def process_regular_variables(current_element):
 
 def process_conditional_variables(current_element):
     """处理条件变量输入"""
-    st.markdown(f"### 条件变量: {current_element['condition_var']}")
-    
     # 选择条件值
     options = [opt["value"] for opt in current_element["options"]]
     if current_element['condition_var'] not in st.session_state.params:
         st.session_state.params[current_element['condition_var']] = options[0]
     
     # 使用按钮组替代下拉选择框
-    st.markdown(f"请选择 `{current_element['condition_var']}` 的值：")
+    st.write(f"选择——{current_element['condition_var']}：")
     cols = st.columns(len(options))
     for i, opt in enumerate(options):
         with cols[i]:
@@ -248,15 +243,12 @@ def process_conditional_variables(current_element):
         opt for opt in current_element["options"] 
         if opt["value"] == st.session_state.params[current_element['condition_var']]
     )
-    
-    st.write(f"请提供 `{st.session_state.params[current_element['condition_var']]}` 分支的变量值：")
-    
     for var in selected_option["variables"]:
         if var not in st.session_state.params:
             st.session_state.params[var] = ""
         
         st.session_state.params[var] = st.text_input(
-            f"请输入 `{var}` 的值", 
+            f"{var}", 
             value=st.session_state.params[var],
             key=f"step_{st.session_state.current_step}_{var}"
         )
@@ -264,40 +256,45 @@ def process_conditional_variables(current_element):
 
 def process_boolean_variables(current_element):
     """处理布尔变量输入"""
-    st.markdown(f"### 布尔变量: {current_element['condition_var']}")
-    
     # 选择布尔值
     if current_element['condition_var'] not in st.session_state.params:
         st.session_state.params[current_element['condition_var']] = "true"
     
-    show_details = st.checkbox(
-        f"是否显示详情 (`{current_element['condition_var']}`)", 
-        value=(st.session_state.params[current_element['condition_var']] == "true"),
-        key=f"step_{st.session_state.current_step}_bool"
-    )
+    # 使用按钮组替代复选框
+    st.write(f"判断——{current_element['condition_var']}：")
+    cols = st.columns(2)
+    options = ["是", "否"]
+    with cols[0]:
+        if st.button("是", key=f"btn_{current_element['condition_var']}_true"):
+            st.session_state.params[current_element['condition_var']] = "true"
+            st.rerun()
+    with cols[1]:
+        if st.button("否", key=f"btn_{current_element['condition_var']}_false"):
+            st.session_state.params[current_element['condition_var']] = "false"
+            st.rerun()
     
-    st.session_state.params[current_element['condition_var']] = "true" if show_details else "false"
+    # 显示当前选中的值
+    current_choice = "是" if st.session_state.params[current_element['condition_var']] == "true" else "否"
+    st.info(f"当前选择: {current_choice}")
     
     # 根据选择显示对应的变量
-    if show_details:
-        st.write("请提供详情变量值：")
+    if st.session_state.params[current_element['condition_var']] == "true":
         for var in current_element["true_variables"]:
             if var not in st.session_state.params:
                 st.session_state.params[var] = ""
             
             st.session_state.params[var] = st.text_input(
-                f"请输入 `{var}` 的值", 
+                f"{var}", 
                 value=st.session_state.params[var],
                 key=f"step_{st.session_state.current_step}_{var}"
             )
     else:
-        st.write("请提供概况变量值：")
         for var in current_element["false_variables"]:
             if var not in st.session_state.params:
                 st.session_state.params[var] = ""
             
             st.session_state.params[var] = st.text_input(
-                f"请输入 `{var}` 的值", 
+                f"{var}", 
                 value=st.session_state.params[var],
                 key=f"step_{st.session_state.current_step}_{var}"
             )
@@ -359,10 +356,10 @@ def main():
     
     if template_content:
         # 2. 提取变量和条件
-        extracted_structure = display_variable_analysis(template_content)
+        extracted_structure = extract_jinja_variables(template_content)
     
         # 3. 收集变量值
-        st.subheader("步骤3: 填写变量值")
+        st.subheader("步骤2: 填写变量值")
         # 初始化session_state
         if 'current_step' not in st.session_state:
             st.session_state.current_step = 0
