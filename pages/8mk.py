@@ -5,7 +5,9 @@ import pyperclip
 
 st.set_page_config(page_title="基本情况单元-填空式生成", layout="wide")
 
-# ---------------- 模板 ----------------
+# --------------------------------------------------
+# 0. 模板库（与 HTML 完全一致，变量名保持）
+# --------------------------------------------------
 single_site_tpl = """三、审查内容模板
 
 （一）单独选址
@@ -40,7 +42,9 @@ batch_land_tpl = """三、审查内容模板
 {{ 不缴纳有偿使用费表述 }}
 """
 
-# ---------------- 状态初始化 ----------------
+# --------------------------------------------------
+# 1. 状态初始化（只第一次执行）
+# --------------------------------------------------
 def init_state():
     keys = [
         "用地类型", "是否涉及永久基本农田", "是否涉及生态保护红线", "是否存在违法用地",
@@ -53,19 +57,21 @@ def init_state():
     for k in keys:
         if k not in st.session_state:
             st.session_state[k] = ""
-    # 单选默认值
-    for k, v in {
-        "用地类型": "单独选址",
-        "是否涉及永久基本农田": "否",
-        "是否涉及生态保护红线": "否",
-        "是否存在违法用地": "否"
-    }.items():
-        if st.session_state[k] == "":
-            st.session_state[k] = v
+    # 给单选组件第一次的默认值
+    if "用地类型" not in st.session_state or st.session_state["用地类型"] == "":
+        st.session_state["用地类型"] = "单独选址"
+    if "是否涉及永久基本农田" not in st.session_state or st.session_state["是否涉及永久基本农田"] == "":
+        st.session_state["是否涉及永久基本农田"] = "否"
+    if "是否涉及生态保护红线" not in st.session_state or st.session_state["是否涉及生态保护红线"] == "":
+        st.session_state["是否涉及生态保护红线"] = "否"
+    if "是否存在违法用地" not in st.session_state or st.session_state["是否存在违法用地"] == "":
+        st.session_state["是否存在违法用地"] = "否"
 
 init_state()
 
-# ---------------- 顶部固定内容 ----------------
+# --------------------------------------------------
+# 2. 顶部固定内容
+# --------------------------------------------------
 st.header("基本情况单元")
 with st.container(border=True):
     st.markdown("**一、业务指导处室**  
@@ -78,21 +84,35 @@ with st.container(border=True):
 - 1999年1月1日之后经依法批准的集体建设用地，在批准农用地转用时未缴纳新增建设用地有偿使用费的，申请土地征收时按照现行标准补缴。
 """)
 
-# ---------------- 条件选择 ----------------
+# --------------------------------------------------
+# 3. 条件选择（单选按钮组）
+# --------------------------------------------------
 col1, col2, col3, col4 = st.columns(4)
-with col1:
-    land_type = st.segmented_control("用地类型", ["单独选址", "批次用地"], key="用地类型")
-with col2:
-    farmland = st.segmented_control("是否涉及永久基本农田", ["否", "是"], key="是否涉及永久基本农田")
-with col3:
-    eco = st.segmented_control("是否涉及生态保护红线", ["否", "是"], key="是否涉及生态保护红线")
-with col4:
-    illegal = st.segmented_control("是否存在违法用地", ["否", "是"], key="是否存在违法用地")
 
+with col1:
+    land_type = st.segmented_control(
+        "用地类型", ["单独选址", "批次用地"], key="用地类型"
+    )
+with col2:
+    farmland = st.segmented_control(
+        "是否涉及永久基本农田", ["否", "是"], key="是否涉及永久基本农田"
+    )
+with col3:
+    eco = st.segmented_control(
+        "是否涉及生态保护红线", ["否", "是"], key="是否涉及生态保护红线"
+    )
+with col4:
+    illegal = st.segmented_control(
+        "是否存在违法用地", ["否", "是"], key="是否存在违法用地"
+    )
+
+# 根据用地类型选模板
 template = single_site_tpl if land_type == "单独选址" else batch_land_tpl
 jinja_vars = sorted({node.name for node in Template(template).find_all()})
 
-# ---------------- 填空区 ----------------
+# --------------------------------------------------
+# 4. 动态填空区（两列布局，更紧凑）
+# --------------------------------------------------
 st.subheader("🔤 请填空")
 inputs = {}
 cols = st.columns(2)
@@ -100,7 +120,9 @@ for idx, var in enumerate(jinja_vars):
     with cols[idx % 2]:
         inputs[var] = st.text_input(var, placeholder=var, key=var)
 
-# ---------------- 按钮 ----------------
+# --------------------------------------------------
+# 5. 操作按钮
+# --------------------------------------------------
 left, mid, right = st.columns(3)
 with left:
     generate = st.button("生成最终文本", type="primary")
@@ -109,9 +131,12 @@ with mid:
 with right:
     reset = st.button("重置")
 
-# ---------------- 渲染 ----------------
+# --------------------------------------------------
+# 6. 渲染逻辑
+# --------------------------------------------------
 if generate:
     text = template
+    # 条件性段落替换
     if land_type == "单独选址":
         if farmland == "是" or eco == "是":
             text = text.replace(
@@ -127,7 +152,7 @@ if generate:
             )
         else:
             text = text.replace("{{ 违法用地表述 }}", "")
-    else:
+    else:  # 批次
         if illegal == "否":
             text = text.replace(
                 "{{ 违法用地可调整说明 }}",
@@ -135,13 +160,20 @@ if generate:
             )
         else:
             text = text.replace("{{ 违法用地可调整说明 }}", "")
+    # Jinja2 最终渲染
     rendered = Template(text).render(**{k: inputs[k] or f"{{{k}}}" for k in jinja_vars})
     st.session_state["final"] = rendered
 
+# --------------------------------------------------
+# 7. 结果展示
+# --------------------------------------------------
 if "final" in st.session_state:
     st.subheader("📄 生成结果")
     st.code(st.session_state["final"], language="text")
 
+# --------------------------------------------------
+# 8. 复制 & 重置
+# --------------------------------------------------
 if copy_btn and "final" in st.session_state:
     pyperclip.copy(st.session_state["final"])
     st.toast("已复制到剪贴板！", icon="✅")
