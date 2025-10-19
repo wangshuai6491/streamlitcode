@@ -1,7 +1,6 @@
- 
-import streamlit as st
+ import streamlit as st
 
-st.title("填空题示例（Markdown方式）")
+st.title("填空题示例")
 
 # 使用expander让界面更整洁
 with st.expander("开始答题", expanded=True):
