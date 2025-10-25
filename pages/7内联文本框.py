@@ -28,45 +28,68 @@ def update_variable_cache(component_result):
             return True
     return False
 
-
-if __name__ == "__main__":
-    # 初始化会话状态
-    init_session_state()
+# 13: 信访处理模板
+def page_13():
+    st.subheader("标签13: 信访处理模板")
     
-    st.subheader("测试1")
-
-    # 输入模板
-    fixed_template = "地址是{{地址}}，{{姓名}}我的名字是{{姓名}}，今年{{年龄}}岁，面积{{面积}}公顷。"
+    # 添加判断按钮，让用户选择是否发生信访（横向排列）
+    st.subheader("信访状态选择")
+    has_letter = st.radio(
+        "是否发生信访?",
+        ('是', '否'),
+        index=1,  # 默认选择"否"
+        horizontal=True  # 横向排列按钮
+    )
+    
     # 设置默认变量缓存
-    defaults = {'地址': '**省', '姓名': '王帅', '年龄': 18, '面积': 100}
+    defaults = {
+        '是否发生信访': has_letter,
+        '信访年份': '2024',
+        '信访月份': '6',
+        '信访县': 'XX',
+        '信访乡': 'XX',
+        '信访村': 'XX',
+        '信访人姓名': '张三',
+        '信访反映具体内容': '相关问题',
+        '受理自然资源主管部门': 'XX自然资源局',
+        '处理具体措施': '已采取相应措施'
+    }
+    
+    # 根据用户选择生成相应的模板内容
+    if has_letter == '是':
+        # 发生信访的模板
+        fixed_template = "〔信访处理〕 {{ 信访年份 }}年{{ 信访月份 }}月，{{ 信访县 }}县{{ 信访乡 }}乡{{ 信访村 }}村村民{{ 信访人姓名 }}来信（访）反映该批次拟占地块{{ 信访反映具体内容 }}。{{ 受理自然资源主管部门 }}进行了认真调查处理，{{ 处理具体措施 }}。目前，信访群众反映的问题已得到妥善解决，信访人表示不再上访。"
+    else:
+        # 未发生信访的模板
+        fixed_template = "〔信访处理〕 该批次用地截至目前未收到相关信访事项。"
+
     for k, v in defaults.items():
         st.session_state.default_values.setdefault(k, v)
-    
-    # 显示当前使用的模板
-    st.write("当前使用的模板:")
-    st.code(fixed_template)
 
     # 调用组件，传递模板和默认值字典（确保使用最新的会话状态值）
     component_result = lineinput(
         fixed_template, 
         default_values=st.session_state.default_values.copy(),  # 创建副本以确保使用最新值
-        key="foo"
+        key="page_13_" + has_letter  # 使用不同的key以确保在切换选项时重新渲染组件
     )
-    # 调用函数更新变量缓存
-    update_variable_cache(component_result)
-    
-    # 显示组件返回的结果
-    st.subheader("组件返回结果")
-    if component_result and component_result.get('content') != "等待用户输入...":
-        st.write("### 拼接后文本")
-        st.code(component_result['content'])
-        
-        st.write("### 变量值字典")
-        st.json(component_result['variables'])
-    else:
-        st.write("等待用户输入...")
+    return component_result
 
-    # 可选：添加会话状态信息显示，方便调试
-    if st.checkbox("显示会话状态信息"):
-        st.write("### 会话状态详情")
-        st.write("当前缓存:", st.session_state.default_values)
+# 主应用逻辑
+if __name__ == "__main__":
+    # 初始化会话状态
+    init_session_state()
+    
+    # 增加侧边栏导航
+    st.sidebar.title("模块单元")
+    page = st.sidebar.selectbox(
+        "选择模块",
+        ["标签13: 信访处理模板", "测试1"],
+        index=0  # 默认选中标签13
+    )
+    with st.sidebar.expander("当前缓存", expanded=False):
+        st.write(st.session_state.default_values)
+    if page == "标签13: 信访处理模板":
+        component_result = page_13()
+        st.write(component_result['content'])
+        # 调用函数更新变量缓存
+        update_variable_cache(component_result)
