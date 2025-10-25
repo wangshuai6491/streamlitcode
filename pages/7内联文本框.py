@@ -86,10 +86,13 @@ if __name__ == "__main__":
         ["标签13: 信访处理模板", "测试1"],
         index=0  # 默认选中标签13
     )
-    with st.sidebar.expander("当前缓存", expanded=False):
-        st.write(st.session_state.default_values)
+
     if page == "标签13: 信访处理模板":
         component_result = page_13()
         st.write(component_result['content'])
         # 调用函数更新变量缓存
         update_variable_cache(component_result)
+    
+    # 把缓存显示放到最后就能确保刷新
+    with st.sidebar.expander("当前缓存", expanded=False):
+        st.write(st.session_state.default_values)
