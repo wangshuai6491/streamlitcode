@@ -1,6 +1,7 @@
 # 13: 信访情况单元
 import streamlit as st
 from __init__ import lineinput
+from common_components import button_group
 def page_13():
     st.subheader("13: 信访情况单元")
     # 头部信息（默认折叠）
@@ -14,13 +15,11 @@ def page_13():
         """)
     
     # 添加判断按钮，让用户选择是否发生信访（横向排列）
-    st.subheader("信访状态选择")
-    has_letter = st.radio(
-        "是否发生信访?",
-        ('是', '否'),
-        index=1,  # 默认选择"否"
-        horizontal=True  # 横向排列按钮
-    )
+    custom_options = [
+        {"label": "有信访", "value": "是"},
+        {"label": "无信访", "value": "否"}
+    ]
+    has_letter = button_group("",custom_options,"否",key="has_letter_selection")
     
     # 设置默认变量缓存
     defaults = {

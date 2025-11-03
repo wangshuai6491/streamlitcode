@@ -6,18 +6,16 @@ def button_group(
     label: str = "",
     options: List[Dict[str, Union[str, bool]]] = None,
     default_value: Union[str, bool] = None,
-    key: str = None,
-    in_form: bool = False
+    key: str = None
 ) -> Union[str, bool]:
     """
-    创建一个类似 Vue 的选择按钮组
+    创建一个选择按钮组
     
     Args:
         label: 组件标签
         options: 选项列表，每个选项包含 label 和 value
         default_value: 默认选中的值
         key: 组件的唯一键
-        in_form: 是否在表单内部使用（使用不同的实现）
     
     Returns:
         当前选中的值
@@ -65,7 +63,7 @@ def button_group(
 
 # 使用示例
 def main():
-    st.title("Streamlit 按钮组示例（修正版）")
+    st.title("Streamlit 按钮组示例")
     
     # 示例1: 默认按钮组（表单外部）
     st.subheader("1. 默认按钮组（表单外部）")

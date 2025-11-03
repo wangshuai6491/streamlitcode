@@ -2,6 +2,7 @@ import streamlit as st
 import re
 import os
 import sys
+from typing import List, Union, Dict, Any
 
 # 添加父目录到Python路径，确保可以导入__init__.py中的函数
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -36,6 +37,106 @@ def update_variable_cache(component_result):
             # st.success("已更新会话状态中的变量值缓存")
             return True
     return False
+
+# 自定义按钮组样式
+def button_group(
+    label: str = "",
+    options: List[Dict[str, Union[str, bool]]] = None,
+    default_value: Union[str, bool] = None,
+    key: str = None
+    ) -> Union[str, bool]:
+    """
+    创建一个选择按钮组
+    Args:
+        label: 组件标签
+        options: 选项列表，每个选项包含 label 和 value
+        default_value: 默认选中的值
+        key: 组件的唯一键
+    
+    Returns:
+        当前选中的值
+    """
+    if options is None:
+        options = [
+            {"label": "是", "value": "是"},
+            {"label": "否", "value": "否"}
+        ]
+    
+    if default_value is None:
+        default_value = options[0]["value"]
+    
+    # 初始化 session state
+    if key is None:
+        key = f"button_group_{label}"
+    
+    if key not in st.session_state:
+        st.session_state[key] = default_value
+    
+    # 显示标签
+    if label:
+        st.write(label)
+    
+    # 创建按钮组布局
+    cols = st.columns(len(options))
+    
+    current_value = st.session_state[key]
+    
+    for i, option in enumerate(options):
+        with cols[i]:
+            is_selected = current_value == option["value"]
+            
+            # 按钮样式
+            button_style = """
+            <style>
+            .btn-group-button {
+                width: 100%;
+                padding: 0.5rem 1rem;
+                border: 1px solid #d1d5db;
+                background-color: white;
+                color: #374151;
+                font-size: 0.875rem;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }
+            .btn-group-button:hover {
+                background-color: #f3f4f6;
+            }
+            .btn-group-button.selected {
+                background-color: #3b82f6;
+                color: white;
+                border-color: #3b82f6;
+            }
+            .btn-group-button:first-child {
+                border-top-left-radius: 0.5rem;
+                border-bottom-left-radius: 0.5rem;
+            }
+            .btn-group-button:last-child {
+                border-top-right-radius: 0.5rem;
+                border-bottom-right-radius: 0.5rem;
+            }
+            .btn-group-button:not(:first-child):not(:last-child) {
+                border-radius: 0;
+            }
+            </style>
+            """
+            
+            # 按钮类名
+            button_class = "btn-group-button"
+            if is_selected:
+                button_class += " selected"
+            
+            # 创建按钮
+            if st.button(
+                option["label"],
+                key=f"{key}_{i}",
+                use_container_width=True,
+                type="primary" if is_selected else "secondary"
+            ):
+                st.session_state[key] = option["value"]
+                st.rerun()
+    
+    return st.session_state[key]
 
 # 主应用逻辑
 if __name__ == "__main__":
