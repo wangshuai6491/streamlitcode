@@ -19,7 +19,7 @@ def page_10():
     st.subheader("违法用地情形")
     illegal_land_case = button_group(
         "",
-        options=[{"label": "不涉及违法用地", "value": "不涉及违法用地"}, {"label": "违法用地", "value": "违法用地"}],
+        options=[{"label": "不涉及违法用地", "value": "不涉及违法用地"}, {"label": "有违法用地", "value": "违法用地"}],
         default_value="不涉及违法用地",
         key="illegal_land_case_select"
     )

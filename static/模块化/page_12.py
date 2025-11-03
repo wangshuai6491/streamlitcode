@@ -16,7 +16,6 @@ def page_12():
         """)
     
     # 添加判断按钮，让用户选择是否位于地质灾害易发区（横向排列）
-    st.subheader("地质灾害危险性评估")
     in_hazard_area = button_group(
         "",
         options=[{"label": "位于地质灾害易发区", "value": "是"}, {"label": "不位于", "value": "否"}],

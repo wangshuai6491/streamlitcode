@@ -19,14 +19,8 @@ def page_8():
         6. 张贴公告后，应拍摄公告张贴的远景概貌照片、近景位置照片和重点位置照片，做好资料留存。
         """)
     
-    # 添加判断按钮，让用户选择用地类型（横向排列）
-    st.subheader("用地类型选择")
-    land_type = button_group(
-        "",
-        options=[{"label": "单独选址", "value": "单独选址"}, {"label": "批次用地", "value": "批次用地"}],
-        default_value="单独选址",
-        key="land_type_select"
-    )
+    # 使用侧边栏中设置的用地类型
+    land_type = st.session_state.land_type
     
     # 设置默认变量缓存
     defaults = {

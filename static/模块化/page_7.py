@@ -17,14 +17,8 @@ def page_7():
         4. 省厅已按照有关规定组织踏勘论证，已说明占用永久基本农田的必要性、合理性，占用和补划永久基本农田方案可行。
         """)
     
-    # 添加判断按钮，让用户选择用地类型（横向排列）
-    st.subheader("用地类型选择")
-    land_type = button_group(
-        "",
-        options=[{"label": "单独选址", "value": "单独选址"}, {"label": "批次用地", "value": "批次用地"}],
-        default_value="单独选址",
-        key="land_type_select"
-    )
+    # 使用侧边栏中设置的用地类型
+    land_type = st.session_state.land_type
     
     # 设置默认变量缓存
     defaults = {

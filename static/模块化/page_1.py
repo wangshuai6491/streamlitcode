@@ -173,12 +173,10 @@ def page_1():
         # 判断区域
         审批权下放 = button_group(
             label="",
-            options=[{"label": "是", "value": "是"}, {"label": "否", "value": "否"}],
+            options=[{"label": "审批权下放", "value": "是"}, {"label": "否", "value": "否"}],
             default_value="否",
             key="审批权下放"
         )
-        # 更新会话状态
-        st.session_state.default_values['审批权下放'] = 审批权下放
         # 根据判断结果生成不同的模板
         if 审批权下放 == "是":
             block1_template = '''该项目符合基本建设投资管理规定。按照{{ 下放依据 }}规定，{{ 审批权下放部门 }}，{{ 预审通过年月 }}，该项目通过{{ 预审自然资源主管部门 }}用地预审（文号：{{ 预审文号 }}）。'''
@@ -193,48 +191,37 @@ def page_1():
         # 区块2: 可研批复情况
         st.markdown("### 〔可研批复情况〕")
         # 判断条件
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            _2024以后通过预审 = button_group(
-                label="",
-                options=[{"label": "否", "value": "否"}, {"label": "是", "value": "是"}],
-                default_value="否",
-                key="_2024以后通过预审"
-            )
-            st.session_state.default_values['2024以后通过预审'] = _2024以后通过预审
-
-        with col2:
-            用地预审在可研之后 = button_group(
-                label="",
-                options=[{"label": "否", "value": "否"}, {"label": "是", "value": "是"}],
-                default_value="否",
-                key="用地预审在可研之后"
-            )
-            st.session_state.default_values['用地预审在可研之后'] = 用地预审在可研之后
-
-        with col3:
-            可研变更 = button_group(
-                label="",
-                options=[{"label": "否", "value": "否"}, {"label": "是", "value": "是"}],
-                default_value="否",
-                key="可研变更"
-            )
-            st.session_state.default_values['可研变更'] = 可研变更
-        核准超期 = button_group(
+        _2024以后通过预审 = button_group(
             label="",
+            options=[{"label": "2024年以后通过预审", "value": "是"}, {"label": "不是", "value": "否"}],
+            default_value="否",
+            key="_2024以后通过预审"
+        )
+        用地预审在可研之后 = button_group(
+            label="",
+            options=[{"label": "用地预审在可研之后", "value": "是"}, {"label": "不是", "value": "否"}],
+            default_value="否",
+            key="用地预审在可研之后"
+        )
+
+        可研变更 = button_group(
+            label="",
+            options=[{"label": "可研有变更", "value": "是"}, {"label": "没变更", "value": "否"}],
+            default_value="否",
+            key="可研变更"
+        )
+        核准超期 = st.selectbox(
+            label="核准文件超期情况",
             options=[
-                {"label": "未超期", "value": "未超期"},
-                {"label": "项目核准文件超出有效期但项目单位在核准有效期内提出用地申请", "value": "项目核准文件超出有效期但项目单位在核准有效期内提出用地申请"},
-                {"label": "项目超出核准有效期但已获得原批准机关核准延期批复", "value": "项目超出核准有效期但已获得原批准机关核准延期批复"},
-                {"label": "项目超出核准有效期但已获得原批准机关核准延期说明", "value": "项目超出核准有效期但已获得原批准机关核准延期说明"}
+                "未超期",
+                "项目核准文件超出有效期但项目单位在核准有效期内提出用地申请",
+                "项目超出核准有效期但已获得原批准机关核准延期批复",
+                "项目超出核准有效期但已获得原批准机关核准延期说明"
             ],
-            default_value="未超期",
+            index=0,
             key="核准超期"
         )
         st.session_state.default_values['核准超期'] = 核准超期
-
-        
         # 根据判断结果生成不同的模板
         block2_template = '''{{ 可研批复年月 }}，{{ 可研批复部门 }}（文号：{{ 可研批复文号 }}）。'''
         
@@ -287,25 +274,21 @@ def page_1():
         )
         
         # 判断区域
-        col1, col2 = st.columns(2)
-        with col1:
-            分期分段 = st.selectbox(
-                "分期分段",
-                ('无', '按市报批', '分期报批'),
-                index=0
-            )
-            # 更新会话状态
-            st.session_state.default_values['分期分段'] = 分期分段
-        
-        with col2:
-            本期不涉及永农红线但需报国务院 = button_group(
-                label="",
-                options=[{"label": "否", "value": "否"}, {"label": "是", "value": "是"}],
-                default_value="否",
-                key="本期不涉及永农红线但需报国务院"
-            )
-            st.session_state.default_values['本期不涉及永农红线但需报国务院'] = 本期不涉及永农红线但需报国务院
-        
+
+        分期分段 = button_group(
+            label="分期分段",
+            options=[{"label": "无分期分段", "value": "无"}, {"label": "按市报批", "value": "按市报批"}, {"label": "分期报批", "value": "分期报批"}],
+            default_value="无",
+            key="分期分段"
+        )
+
+        本期不涉及永农红线但需报国务院 = button_group(
+            label="",
+            options=[{"label": "本期不涉及永农红线但需报国务院", "value": "是"}, {"label": "不存在此类情况", "value": "否"}],
+            default_value="否",
+            key="本期不涉及永农红线但需报国务院"
+        )
+
         # 根据判断结果生成不同的模板
         paragraph_template = '''项目按{{ 建设标准或规模 }}，总投资{{ 总投资 }}亿元。'''
         if 分期分段 == "按市报批":
@@ -349,7 +332,7 @@ def page_1():
         # 判断区域
         矿业复垦 = button_group(
             label="",
-            options=[{"label": "否", "value": "否"}, {"label": "是", "value": "是"}],
+            options=[{"label": "属于矿业复垦", "value": "是"}, {"label": "不属于矿业复垦", "value": "否"}],
             default_value="否",
             key="矿业复垦"
         )
@@ -371,26 +354,20 @@ def page_1():
         # 区块6: 缴纳新增建设用地土地有偿使用费情况
         st.markdown("### 〔缴纳新增建设用地土地有偿使用费情况〕")
         # 判断区域
-        col1, col2 = st.columns(2)
-        with col1:
-            表述方式 = button_group(
-                label="",
-                options=[{"label": "方式1", "value": "方式1"}, {"label": "方式2", "value": "方式2"}],
-                default_value="方式1",
-                key="表述方式"
-            )
-            # 更新会话状态
-            st.session_state.default_values['表述方式'] = 表述方式
-        with col2:
-            缴费情形 = button_group(
-                label="",
-                options=[{"label": "有偿使用", "value": "有偿使用"}, {"label": "以划拨方式供地", "value": "以划拨方式供地"}],
-                default_value="有偿使用",
-                key="缴费情形"
-            )
-            # 更新会话状态
-            st.session_state.default_values['缴费情形'] = 缴费情形
-        
+        表述方式 = button_group(
+            label="",
+            options=[{"label": "表述方式1", "value": "方式1"}, {"label": "表述方式2", "value": "方式2"}],
+            default_value="表述方式1",
+            key="表述方式"
+        )
+
+        缴费情形 = button_group(
+            label="",
+            options=[{"label": "有偿使用", "value": "有偿使用"}, {"label": "以划拨方式供地", "value": "以划拨方式供地"}],
+            default_value="有偿使用",
+            key="缴费情形"
+        )
+
         # 仅在有偿使用情形下显示表格输入
         if 缴费情形 == "有偿使用":
             # 圈外县区列表表格输入
@@ -528,7 +505,7 @@ def page_1():
         # 判断区域
         有无可调整地类 = button_group(
             label="",
-            options=[{"label": "是", "value": "是"}, {"label": "否", "value": "否"}],
+            options=[{"label": "有可调整地类", "value": "是"}, {"label": "无可调整地类", "value": "否"}],
             default_value="是",
             key="有无可调整地类"
         )
@@ -536,16 +513,20 @@ def page_1():
         st.session_state.default_values['有无可调整地类'] = 有无可调整地类
         # 根据判断结果生成不同的模板
         if 有无可调整地类 == "是":
-            block1_template = '''该批次实际申请用地情况为：总面积{{总面积}}公顷，其中：农用地{{农用地面积}}公顷（耕地{{耕地面积}}公顷）、建设用地{{建设用地面积}}公顷、未利用地{{未利用地面积}}公顷。\n\n 按权属和地类分：农民集体所有土地{{集体土地总面积}}公顷，其中：农用地{{集体农用地}}公顷（耕地{{集体耕地}}公顷）、建设用地{{集体建设用地}}公顷、未利用地{{集体未利用地}}公顷；国有土地{{国有土地总面积}}公顷，其中：农用地{{国有农用地}}公顷（耕地{{国有耕地}}公顷）、建设用地{{国有建设用地}}公顷、未利用地{{国有未利用地}}公顷，地类和面积准确。'''
+            block1_template = '''该批次实际申请用地情况为：总面积{{总面积}}公顷，其中：农用地{{农用地面积}}公顷（耕地{{耕地面积}}公顷）、建设用地{{建设用地面积}}公顷、未利用地{{未利用地面积}}公顷。'''
         else:
-            block1_template = '''该批次实际申请用地情况为：总面积{{总面积}}公顷，其中：农用地{{农用地面积}}公顷（耕地{{耕地面积}}公顷；可调整地类{{可调整地类面积}}公顷）、建设用地{{建设用地面积}}公顷、未利用地{{未利用地面积}}公顷。按权属和地类分：农民集体所有土地{{集体土地总面积}}公顷，其中：农用地{{集体农用地}}公顷（耕地{{集体耕地}}公顷）、建设用地{{集体建设用地}}公顷、未利用地{{集体未利用地}}公顷；国有土地{{国有土地总面积}}公顷，其中：农用地{{国有农用地}}公顷（耕地{{国有耕地}}公顷）、建设用地{{国有建设用地}}公顷、未利用地{{国有未利用地}}公顷，地类和面积准确。'''
-        
-        all_results['block1'] = lineinput(
+            block1_template = '''该批次实际申请用地情况为：总面积{{总面积}}公顷，其中：农用地{{农用地面积}}公顷（耕地{{耕地面积}}公顷；可调整地类{{可调整地类面积}}公顷）、建设用地{{建设用地面积}}公顷、未利用地{{未利用地面积}}公顷。'''
+        all_results['block1_1'] = lineinput(
             block1_template,
             default_values=st.session_state.default_values.copy(),
             key="page_1_batch_block1"
         )
-        
+        block1_template2 = '''按权属和地类分：农民集体所有土地{{集体土地总面积}}公顷，其中：农用地{{集体农用地}}公顷（耕地{{集体耕地}}公顷）、建设用地{{集体建设用地}}公顷、未利用地{{集体未利用地}}公顷；国有土地{{国有土地总面积}}公顷，其中：农用地{{国有农用地}}公顷（耕地{{国有耕地}}公顷）、建设用地{{国有建设用地}}公顷、未利用地{{国有未利用地}}公顷，地类和面积准确。'''
+        all_results['block1_2'] = lineinput(
+            block1_template2,
+            default_values=st.session_state.default_values.copy(),
+            key="page_1_batch_block1_2"
+        )
         # 批次用地模板 - 区块2: 农用地转用情况
         st.markdown("### 〔农用地转用情况〕")
         # 判断区域
@@ -564,7 +545,7 @@ def page_1():
         elif 批次类型 == "增减挂钩批次":
             分次报批 = button_group(
                 label="",
-                options=[{"label": "否", "value": "否"}, {"label": "是", "value": "是"}],
+                options=[{"label": "一次性报批", "value": "否"}, {"label": "分次报批", "value": "是"}],
                 default_value="否",
                 key="分次报批"
             )
@@ -587,7 +568,7 @@ def page_1():
         # 判断区域
         涉及新增建设用地 = button_group(
             label="",
-            options=[{"label": "否", "value": "否"}, {"label": "是", "value": "是"}],
+            options=[{"label": "涉及新增建设用地", "value": "是"}, {"label": "不涉及", "value": "否"}],
             default_value="否",
             key="涉及新增建设用地"
         )

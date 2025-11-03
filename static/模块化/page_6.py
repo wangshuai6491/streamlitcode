@@ -15,14 +15,8 @@ def page_6():
         2. 项目涉及生态保护红线的，应符合《自然资源部生态环境部国家林业和草原局关于加强生态保护红线管理的通知(试行)》(自然资发(2022)142号)有关要求，并取得省政府出具的认定意见或不可避让论证意见。
         """)
     
-    # 添加判断按钮，让用户选择用地类型（横向排列）
-    st.subheader("用地类型选择")
-    land_type = button_group(
-        "",
-        options=[{"label": "单独选址", "value": "单独选址"}, {"label": "批次用地", "value": "批次用地"}],
-        default_value="单独选址",
-        key="land_type_select"
-    )
+    # 使用侧边栏中设置的用地类型
+    land_type = st.session_state.land_type
     
     # 设置默认变量缓存
     defaults = {
