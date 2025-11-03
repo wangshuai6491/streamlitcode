@@ -1,6 +1,7 @@
 # 10: 违法用地单元
 import streamlit as st
 from __init__ import lineinput
+from common_components import button_group
 def page_10():
     st.subheader("10: 违法用地单元")
     # 头部信息（默认折叠）
@@ -16,21 +17,21 @@ def page_10():
     
     # 添加判断按钮，让用户选择是否涉及违法用地（横向排列）
     st.subheader("违法用地情形")
-    illegal_land_case = st.radio(
-        "违法用地情形：",
-        ('不涉及违法用地', '违法用地'),
-        index=0,  # 默认选择"不涉及违法用地"
-        horizontal=True  # 横向排列按钮
+    illegal_land_case = button_group(
+        "",
+        options=[{"label": "不涉及违法用地", "value": "不涉及违法用地"}, {"label": "违法用地", "value": "违法用地"}],
+        default_value="不涉及违法用地",
+        key="illegal_land_case_select"
     )
     
     # 如果选择不涉及违法用地，再询问临时用地情况
     temp_land_case = None
     if illegal_land_case == '不涉及违法用地':
-        temp_land_case = st.radio(
-            "临时用地情况：",
-            ('无临时用地', '有临时用地'),
-            index=0,  # 默认选择"无临时用地"
-            horizontal=True  # 横向排列按钮
+        temp_land_case = button_group(
+            "",
+            options=[{"label": "无临时用地", "value": "无临时用地"}, {"label": "有临时用地", "value": "有临时用地"}],
+            default_value="无临时用地",
+            key="temp_land_case_select"
         )
     
     # 设置默认变量缓存

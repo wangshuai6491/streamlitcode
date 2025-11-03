@@ -1,5 +1,6 @@
 import streamlit as st
 from datetime import datetime
+from common_components import button_group
 
 # 生成唯一的组件key
 def generate_key(component_type, index=None):
@@ -15,11 +16,11 @@ def page_2():
     # 文件原文折叠面板
     with st.expander("文件原文", expanded=False):
         st.markdown("""### 一、业务指导处室
-    国土空间用途管制处
+        国土空间用途管制处
 
-    ### 二、审查标准
-    1. 涉及占用林地的，应当取得使用林地审核同意书，且应当在有效期内。涉及占用各类保护地的，需取得相关主管部门同意的意见。
-    2. 采矿用地需取得采矿许可证。""")
+        ### 二、审查标准
+        1. 涉及占用林地的，应当取得使用林地审核同意书，且应当在有效期内。涉及占用各类保护地的，需取得相关主管部门同意的意见。
+        2. 采矿用地需取得采矿许可证。""")
 
     # 初始化默认值字典 - 单独选址
     def get_single_default_values():
@@ -72,11 +73,11 @@ def page_2():
     st.subheader("三、审查内容模板")
 
     # 用地类型选择
-    land_type = st.radio(
-        "用地类型",
-        options=["单独选址", "批次用地"],
-        key=generate_key("land_type"),
-        horizontal=True
+    land_type = button_group(
+        label="",
+        options=[{"label": "单独选址", "value": "单独选址"}, {"label": "批次用地", "value": "批次用地"}],
+        default_value="单独选址",
+        key=generate_key("land_type")
     )
 
     # 生成单独选址模板文本
@@ -131,12 +132,11 @@ def page_2():
         with st.form(key=generate_key("single_location_form")):
             # 涉及占用林地判断选择区块
             st.markdown("#### 林地占用情况")
-            st.session_state.approval_unit_single['涉及占用林地'] = st.radio(
-                "是否涉及占用林地", 
-                options=["是", "否"],
-                index=0 if st.session_state.approval_unit_single['涉及占用林地'] == "是" else 1,
-                key=generate_key("涉及占用林地"),
-                horizontal=True
+            st.session_state.approval_unit_single['涉及占用林地'] = button_group(
+                label="",
+                options=[{"label": "是", "value": "是"}, {"label": "否", "value": "否"}],
+                default_value="否",
+                key=generate_key("涉及占用林地")
             )
             
             if st.session_state.approval_unit_single['涉及占用林地'] == "是":
@@ -186,12 +186,11 @@ def page_2():
             
             # 涉及保护地判断选择区块
             st.markdown("#### 保护地情况")
-            st.session_state.approval_unit_single['涉及保护地'] = st.radio(
-                "是否涉及保护地", 
-                options=["是", "否"],
-                index=0 if st.session_state.approval_unit_single['涉及保护地'] == "是" else 1,
-                key=generate_key("涉及保护地"),
-                horizontal=True
+            st.session_state.approval_unit_single['涉及保护地'] = button_group(
+                label="",
+                options=[{"label": "是", "value": "是"}, {"label": "否", "value": "否"}],
+                default_value="否",
+                key=generate_key("涉及保护地")
             )
             
             if st.session_state.approval_unit_single['涉及保护地'] == "是":
@@ -225,12 +224,11 @@ def page_2():
         with st.form(key=generate_key("batch_land_form")):
             # 林地审核情况区块
             st.markdown("#### 林地审核情况")
-            st.session_state.approval_unit_batch['涉及林地'] = st.radio(
-                "是否涉及林地", 
-                options=["是", "否"],
-                index=0 if st.session_state.approval_unit_batch['涉及林地'] == "是" else 1,
-                key=generate_key("涉及林地"),
-                horizontal=True
+            st.session_state.approval_unit_batch['涉及林地'] = button_group(
+                label="",
+                options=[{"label": "是", "value": "是"}, {"label": "否", "value": "否"}],
+                default_value="否",
+                key=generate_key("涉及林地")
             )
             
             if st.session_state.approval_unit_batch['涉及林地'] == "是":
@@ -241,12 +239,11 @@ def page_2():
                 )
                 
                 st.markdown("**《林地审核同意书》状态：**")
-                st.session_state.approval_unit_batch['林地审核状态'] = st.radio(
-                    "", 
-                    options=["已获批", "正在办理"],
-                    index=0 if st.session_state.approval_unit_batch['林地审核状态'] == "已获批" else 1,
-                    key=generate_key("林地审核状态"),
-                    horizontal=True
+                st.session_state.approval_unit_batch['林地审核状态'] = button_group(
+                    label="",
+                    options=[{"label": "已获批", "value": "已获批"}, {"label": "正在办理", "value": "正在办理"}],
+                    default_value="已获批",
+                    key=generate_key("林地审核状态")
                 )
                 
                 st.session_state.approval_unit_batch['林草部门'] = st.text_input(
@@ -259,12 +256,11 @@ def page_2():
             
             # 保护地情况区块
             st.markdown("#### 保护地情况")
-            st.session_state.approval_unit_batch['涉及保护地'] = st.radio(
-                "是否涉及保护地", 
-                options=["是", "否"],
-                index=0 if st.session_state.approval_unit_batch['涉及保护地'] == "是" else 1,
-                key=generate_key("涉及保护地"),
-                horizontal=True
+            st.session_state.approval_unit_batch['涉及保护地'] = button_group(
+                label="",
+                options=[{"label": "是", "value": "是"}, {"label": "否", "value": "否"}],
+                default_value="否",
+                key=generate_key("涉及保护地")
             )
             
             if st.session_state.approval_unit_batch['涉及保护地'] == "是":

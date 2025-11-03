@@ -1,6 +1,7 @@
 # 1: 基本情况单元
 import streamlit as st
 from __init__ import lineinput
+from common_components import button_group
 
 def page_1():
     st.subheader("1: 基本情况单元")
@@ -170,11 +171,11 @@ def page_1():
         # 区块1: 用地预审情况
         st.markdown("### 〔用地预审情况〕")
         # 判断区域
-        审批权下放 = st.radio(
-            "审批权下放",
-            ('是', '否'),
-            index=1,
-            horizontal=True
+        审批权下放 = button_group(
+            label="",
+            options=[{"label": "是", "value": "是"}, {"label": "否", "value": "否"}],
+            default_value="否",
+            key="审批权下放"
         )
         # 更新会话状态
         st.session_state.default_values['审批权下放'] = 审批权下放
@@ -195,42 +196,40 @@ def page_1():
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            _2024以后通过预审 = st.radio(
-                "2024以后通过预审",
-                ('否', '是'),
-                index=0,
-                horizontal=True,
+            _2024以后通过预审 = button_group(
+                label="",
+                options=[{"label": "否", "value": "否"}, {"label": "是", "value": "是"}],
+                default_value="否",
                 key="_2024以后通过预审"
             )
             st.session_state.default_values['2024以后通过预审'] = _2024以后通过预审
 
         with col2:
-            用地预审在可研之后 = st.radio(
-                "用地预审在可研之后",
-                ('否', '是'),
-                index=0,
-                horizontal=True,
+            用地预审在可研之后 = button_group(
+                label="",
+                options=[{"label": "否", "value": "否"}, {"label": "是", "value": "是"}],
+                default_value="否",
                 key="用地预审在可研之后"
             )
             st.session_state.default_values['用地预审在可研之后'] = 用地预审在可研之后
 
         with col3:
-            可研变更 = st.radio(
-                "可研变更",
-                ('否', '是'),
-                index=0,
-                horizontal=True,
+            可研变更 = button_group(
+                label="",
+                options=[{"label": "否", "value": "否"}, {"label": "是", "value": "是"}],
+                default_value="否",
                 key="可研变更"
             )
             st.session_state.default_values['可研变更'] = 可研变更
-        核准超期 = st.radio(
-            "核准超期",
-            ('未超期', 
-            '项目核准文件超出有效期但项目单位在核准有效期内提出用地申请',
-            '项目超出核准有效期但已获得原批准机关核准延期批复', 
-            '项目超出核准有效期但已获得原批准机关核准延期说明'),
-            index=0,
-            horizontal=True,
+        核准超期 = button_group(
+            label="",
+            options=[
+                {"label": "未超期", "value": "未超期"},
+                {"label": "项目核准文件超出有效期但项目单位在核准有效期内提出用地申请", "value": "项目核准文件超出有效期但项目单位在核准有效期内提出用地申请"},
+                {"label": "项目超出核准有效期但已获得原批准机关核准延期批复", "value": "项目超出核准有效期但已获得原批准机关核准延期批复"},
+                {"label": "项目超出核准有效期但已获得原批准机关核准延期说明", "value": "项目超出核准有效期但已获得原批准机关核准延期说明"}
+            ],
+            default_value="未超期",
             key="核准超期"
         )
         st.session_state.default_values['核准超期'] = 核准超期
@@ -262,11 +261,14 @@ def page_1():
         # 区块3: 初步设计批复情况
         st.markdown("### 〔初步设计批复情况〕")
         # 判断区域
-        初设变更 = st.radio(
-            "初设变更",
-            ('无变更', '正常审批', '权力下放审批'),
-            index=0,
-            horizontal=True,
+        初设变更 = button_group(
+            label="",
+            options=[
+                {"label": "无变更", "value": "无变更"},
+                {"label": "正常审批", "value": "正常审批"},
+                {"label": "权力下放审批", "value": "权力下放审批"}
+            ],
+            default_value="无变更",
             key="初设变更"
         )
         # 更新会话状态
@@ -296,11 +298,10 @@ def page_1():
             st.session_state.default_values['分期分段'] = 分期分段
         
         with col2:
-            本期不涉及永农红线但需报国务院 = st.radio(
-                "本期不涉及永农红线但需报国务院",
-                ('否', '是'),
-                index=0,
-                horizontal=True,
+            本期不涉及永农红线但需报国务院 = button_group(
+                label="",
+                options=[{"label": "否", "value": "否"}, {"label": "是", "value": "是"}],
+                default_value="否",
                 key="本期不涉及永农红线但需报国务院"
             )
             st.session_state.default_values['本期不涉及永农红线但需报国务院'] = 本期不涉及永农红线但需报国务院
@@ -323,11 +324,11 @@ def page_1():
         # 区块4: 核减用地情况
         st.markdown("### 〔核减用地情况〕")
         # 判断区域
-        市县核减 = st.radio(
-            "市县核减",
-            ('未核减', '有核减'),
-            index=0,
-            horizontal=True
+        市县核减 = button_group(
+            label="",
+            options=[{"label": "未核减", "value": "未核减"}, {"label": "有核减", "value": "有核减"}],
+            default_value="未核减",
+            key="市县核减"
         )
         # 更新会话状态
         st.session_state.default_values['市县核减'] = 市县核减
@@ -346,11 +347,11 @@ def page_1():
         # 区块5: 农用地转用情况
         st.markdown("### 〔农用地转用情况〕")
         # 判断区域
-        矿业复垦 = st.radio(
-            "矿业用地复垦利用项目",
-            ('否', '是'),
-            index=0,
-            horizontal=True
+        矿业复垦 = button_group(
+            label="",
+            options=[{"label": "否", "value": "否"}, {"label": "是", "value": "是"}],
+            default_value="否",
+            key="矿业复垦"
         )
         # 更新会话状态
         st.session_state.default_values['矿业复垦'] = 矿业复垦
@@ -372,20 +373,20 @@ def page_1():
         # 判断区域
         col1, col2 = st.columns(2)
         with col1:
-            表述方式 = st.radio(
-                "表述方式",
-                ('方式1', '方式2'),
-                index=0,
-                horizontal=True
+            表述方式 = button_group(
+                label="",
+                options=[{"label": "方式1", "value": "方式1"}, {"label": "方式2", "value": "方式2"}],
+                default_value="方式1",
+                key="表述方式"
             )
             # 更新会话状态
             st.session_state.default_values['表述方式'] = 表述方式
         with col2:
-            缴费情形 = st.radio(
-                "缴费情形",
-                ('有偿使用', '以划拨方式供地'),
-                index=0,
-                horizontal=True
+            缴费情形 = button_group(
+                label="",
+                options=[{"label": "有偿使用", "value": "有偿使用"}, {"label": "以划拨方式供地", "value": "以划拨方式供地"}],
+                default_value="有偿使用",
+                key="缴费情形"
             )
             # 更新会话状态
             st.session_state.default_values['缴费情形'] = 缴费情形
@@ -502,11 +503,11 @@ def page_1():
         # 区块7: 违法用地占用自然保护区或生态保护红线情况
         st.markdown("### 〔违法用地占用自然保护区或生态保护红线情况〕")
         # 判断区域
-        违法涉及保护地 = st.radio(
-            "违法涉及保护地",
-            ('否', '是'),
-            index=0,
-            horizontal=True
+        违法涉及保护地 = button_group(
+            label="",
+            options=[{"label": "否", "value": "否"}, {"label": "是", "value": "是"}],
+            default_value="否",
+            key="违法涉及保护地"
         )
         # 更新会话状态
         st.session_state.default_values['违法涉及保护地'] = 违法涉及保护地
@@ -525,11 +526,11 @@ def page_1():
         # 批次用地模板 - 区块1: 基本情况
         st.markdown("### 〔基本情况〕")
         # 判断区域
-        有无可调整地类 = st.radio(
-            "符合：无违法用地或2020年之后发生的违法用地",
-            ('是', '否'),
-            index=0,
-            horizontal=True
+        有无可调整地类 = button_group(
+            label="",
+            options=[{"label": "是", "value": "是"}, {"label": "否", "value": "否"}],
+            default_value="是",
+            key="有无可调整地类"
         )
         # 更新会话状态
         st.session_state.default_values['有无可调整地类'] = 有无可调整地类
@@ -548,11 +549,11 @@ def page_1():
         # 批次用地模板 - 区块2: 农用地转用情况
         st.markdown("### 〔农用地转用情况〕")
         # 判断区域
-        批次类型 = st.radio(
-            "是否为增减挂钩项目",
-            ('普通批次', '增减挂钩批次'),
-            index=0,
-            horizontal=True
+        批次类型 = button_group(
+            label="",
+            options=[{"label": "普通批次", "value": "普通批次"}, {"label": "增减挂钩批次", "value": "增减挂钩批次"}],
+            default_value="普通批次",
+            key="批次类型"
         )
         # 更新会话状态
         st.session_state.default_values['批次类型'] = 批次类型
@@ -561,11 +562,11 @@ def page_1():
         if 批次类型 == "普通批次":
             block2_template = '''该批次申请将农用地{{转用农用地}}公顷（耕地{{转用耕地}}公顷）、未利用地{{转用未利用地}}公顷转为建设用地，其中：农民集体所有农用地{{集体转用农用地}}公顷（耕地{{集体转用耕地}}公顷）、未利用地{{集体转用未利用地}}公顷；国有农用地{{国有转用农用地}}公顷（耕地{{国有转用耕地}}公顷）、未利用地{{国有转用未利用地}}公顷。'''
         elif 批次类型 == "增减挂钩批次":
-            分次报批 = st.radio(
-                "分次报批",
-                ('否', '是'),
-                index=0,
-                horizontal=True
+            分次报批 = button_group(
+                label="",
+                options=[{"label": "否", "value": "否"}, {"label": "是", "value": "是"}],
+                default_value="否",
+                key="分次报批"
             )
             # 更新会话状态
             st.session_state.default_values['分次报批'] = 分次报批
@@ -584,11 +585,11 @@ def page_1():
         # 批次用地模板 - 区块3: 缴纳新增建设用地土地有偿使用费
         st.markdown("### 〔缴纳新增建设用地土地有偿使用费〕")
         # 判断区域
-        涉及新增建设用地 = st.radio(
-            "涉及新增建设用地",
-            ('否', '是'),
-            index=0,
-            horizontal=True
+        涉及新增建设用地 = button_group(
+            label="",
+            options=[{"label": "否", "value": "否"}, {"label": "是", "value": "是"}],
+            default_value="否",
+            key="涉及新增建设用地"
         )
         # 更新会话状态
         st.session_state.default_values['涉及新增建设用地'] = 涉及新增建设用地
@@ -596,11 +597,11 @@ def page_1():
         # 嵌套判断
         缴存方式 = "承诺缴纳"
         if 涉及新增建设用地 == "是":
-            缴存方式 = st.radio(
-                "缴存方式",
-                ('承诺缴纳', '已预缴'),
-                index=0,
-                horizontal=True
+            缴存方式 = button_group(
+                label="",
+                options=[{"label": "承诺缴纳", "value": "承诺缴纳"}, {"label": "已预缴", "value": "已预缴"}],
+                default_value="承诺缴纳",
+                key="缴存方式"
             )
             # 更新会话状态
             st.session_state.default_values['缴存方式'] = 缴存方式

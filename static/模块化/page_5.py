@@ -1,5 +1,6 @@
 import streamlit as st
 from datetime import datetime
+from common_components import button_group
 
 # 生成唯一的组件key
 def generate_key(component_type, index=None):
@@ -129,10 +130,10 @@ def page_5():
         st.session_state.land_right_form = get_default_values()
 
     # 用地类型选择
-    land_type = st.radio(
-        "用地类型",
-        options=["single", "batch"],
-        format_func=lambda x: "单独选址" if x == "single" else "批次用地",
+    land_type = button_group(
+        "",
+        options=[{"label": "单独选址", "value": "single"}, {"label": "批次用地", "value": "batch"}],
+        default_value="single",
         key=generate_key("land_type")
     )
 

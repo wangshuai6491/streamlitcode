@@ -1,6 +1,7 @@
 # 9: 古树名木和历史文化保护单元
 import streamlit as st
 from __init__ import lineinput
+from common_components import button_group
 def page_9():
     st.subheader("9: 古树名木和历史文化保护单元")
     # 头部信息（默认折叠）
@@ -16,21 +17,25 @@ def page_9():
     
     # 添加判断按钮，让用户选择是否涉及古树名木和历史文化保护（横向排列）
     st.subheader("古树名木和历史文化保护")
-    has_protection = st.radio(
-        "是否涉及古树名木和历史文化保护：",
-        ('否', '是'),
-        index=0,  # 默认选择"否"
-        horizontal=True  # 横向排列按钮
+    has_protection = button_group(
+        "",
+        options=[{"label": "涉及古树名木和历史文化保护", "value": "是"}, {"label": "不涉及", "value": "否"}],
+        default_value="否",
+        key="has_protection_select"
     )
     
     # 如果选择涉及，再询问具体类型
     protection_type = None
     if has_protection == '是':
-        protection_type = st.radio(
-            "涉及类型：",
-            ('古树名木', '历史文化名镇名村', '传统村落', '文物保护单位', '其他'),
-            index=0,  # 默认选择"古树名木"
-            horizontal=True  # 横向排列按钮
+        protection_type = button_group(
+            "",
+            options=[{"label": "古树名木", "value": "古树名木"}, 
+                     {"label": "历史文化名镇名村", "value": "历史文化名镇名村"}, 
+                     {"label": "传统村落", "value": "传统村落"}, 
+                     {"label": "文物保护单位", "value": "文物保护单位"}, 
+                     {"label": "其他", "value": "其他"}],
+            default_value="古树名木",
+            key="protection_type_select"
         )
     
     # 设置默认变量缓存

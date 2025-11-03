@@ -1,6 +1,7 @@
 # 12: 地灾评估单元
 import streamlit as st
 from __init__ import lineinput
+from common_components import button_group
 def page_12():
     st.subheader("12: 地灾评估单元")
     # 头部信息（默认折叠）
@@ -16,11 +17,11 @@ def page_12():
     
     # 添加判断按钮，让用户选择是否位于地质灾害易发区（横向排列）
     st.subheader("地质灾害危险性评估")
-    in_hazard_area = st.radio(
-        "是否位于地质灾害易发区：",
-        ('是', '否'),
-        index=0,  # 默认选择"是"
-        horizontal=True  # 横向排列按钮
+    in_hazard_area = button_group(
+        "",
+        options=[{"label": "位于地质灾害易发区", "value": "是"}, {"label": "不位于", "value": "否"}],
+        default_value="是",
+        key="hazard_area_select"
     )
     
     # 设置默认变量缓存

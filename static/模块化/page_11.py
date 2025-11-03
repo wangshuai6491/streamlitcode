@@ -1,6 +1,7 @@
 # 11: 压矿情况单元
 import streamlit as st
 from __init__ import lineinput
+from common_components import button_group
 def page_11():
     st.subheader("11: 压矿情况单元")
     # 头部信息（默认折叠）
@@ -17,11 +18,13 @@ def page_11():
     
     # 添加判断按钮，让用户选择压覆情形（横向排列）
     st.subheader("压矿情况单元不区分单选和批次，用的是同一套模板")
-    mineral_case = st.radio(
-        "压覆情形：",
-        ('不压覆', '影响但不作压覆处理', '已办审批'),
-        index=0,  # 默认选择"不压覆"
-        horizontal=True  # 横向排列按钮
+    mineral_case = button_group(
+        "",
+        options=[{"label": "不压覆", "value": "不压覆"}, 
+                 {"label": "影响但不作压覆处理", "value": "影响但不作压覆处理"}, 
+                 {"label": "已办审批", "value": "已办审批"}],
+        default_value="不压覆",
+        key="mineral_case_select"
     )
     
     # 设置默认变量缓存

@@ -1,6 +1,7 @@
 # 土地预审单元
 import streamlit as st
 from datetime import datetime
+from common_components import button_group
 
 # 生成唯一的组件key
 def generate_key(component_type, index=None):
@@ -124,10 +125,10 @@ def page_4():
         st.subheader("用地预审情况")
         
         # 审批权是否下放
-        st.session_state.pre_approval_form['审批权是否下放'] = st.radio(
-            "审批权是否下放",
-            options=["是", "否"],
-            index=0 if st.session_state.pre_approval_form['审批权是否下放'] == "是" else 1,
+        st.session_state.pre_approval_form['审批权是否下放'] = button_group(
+            label="",
+            options=[{"label": "是", "value": "是"}, {"label": "否", "value": "否"}],
+            default_value="否",
             key=generate_key("审批权是否下放")
         )
         
@@ -156,32 +157,25 @@ def page_4():
         # 用户选择判断区
         col1, col2 = st.columns(2)
         with col1:
-            st.session_state.pre_approval_form['占用永久基本农田且由省级自然资源主管部门预审'] = st.radio(
-                "是否占用永久基本农田且由省级自然资源主管部门预审？",
-                options=["是", "否"],
-                index=0 if st.session_state.pre_approval_form['占用永久基本农田且由省级自然资源主管部门预审'] == "是" else 1,
-                key=generate_key("占用永久基本农田且由省级自然资源主管部门预审"),
-                horizontal=True
+            st.session_state.pre_approval_form['占用永久基本农田且由省级自然资源主管部门预审'] = button_group(
+                label="",
+                options=[{"label": "是", "value": "是"}, {"label": "否", "value": "否"}],
+                default_value="否",
+                key=generate_key("占用永久基本农田且由省级自然资源主管部门预审")
             )
         with col2:
-            st.session_state.pre_approval_form['立项与预审层级一致'] = st.radio(
-                "立项与预审层级一致：",
-                options=["是", "否"],
-                index=0 if st.session_state.pre_approval_form['立项与预审层级一致'] == "是" else 1,
-                key=generate_key("立项与预审层级一致"),
-                horizontal=True
+            st.session_state.pre_approval_form['立项与预审层级一致'] = button_group(
+                label="",
+                options=[{"label": "是", "value": "是"}, {"label": "否", "value": "否"}],
+                default_value="是",
+                key=generate_key("立项与预审层级一致")
             )
         
-        st.session_state.pre_approval_form['申报用地与预审控制用地规模'] = st.radio(
-            "申报用地与预审控制用地规模：",
-            options=["一致", "基本一致", "超出规模"],
-            index={
-                "一致": 0,
-                "基本一致": 1,
-                "超出规模": 2
-            }.get(st.session_state.pre_approval_form['申报用地与预审控制用地规模'], 0),
-            key=generate_key("申报用地与预审控制用地规模"),
-            horizontal=True
+        st.session_state.pre_approval_form['申报用地与预审控制用地规模'] = button_group(
+            label="",
+            options=[{"label": "一致", "value": "一致"}, {"label": "基本一致", "value": "基本一致"}, {"label": "超出规模", "value": "超出规模"}],
+            default_value="一致",
+            key=generate_key("申报用地与预审控制用地规模")
         )
         
         # 用户输入交互区

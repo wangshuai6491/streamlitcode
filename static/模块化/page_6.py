@@ -1,6 +1,7 @@
 # 6: 国土空间规划单元
 import streamlit as st
 from __init__ import lineinput
+from common_components import button_group
 def page_6():
     st.subheader("6: 国土空间规划单元")
     # 头部信息（默认折叠）
@@ -16,11 +17,11 @@ def page_6():
     
     # 添加判断按钮，让用户选择用地类型（横向排列）
     st.subheader("用地类型选择")
-    land_type = st.radio(
-        "用地类型：",
-        ('单独选址', '批次用地'),
-        index=0,  # 默认选择"单独选址"
-        horizontal=True  # 横向排列按钮
+    land_type = button_group(
+        "",
+        options=[{"label": "单独选址", "value": "单独选址"}, {"label": "批次用地", "value": "批次用地"}],
+        default_value="单独选址",
+        key="land_type_select"
     )
     
     # 设置默认变量缓存

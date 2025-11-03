@@ -1,5 +1,6 @@
 import streamlit as st
 from datetime import datetime
+from common_components import button_group
 
 # 生成唯一的组件key
 def generate_key(component_type, index=None):
@@ -71,11 +72,11 @@ def page_3():
     st.subheader("三、审查内容模板")
 
     # 用地类型选择
-    land_type = st.radio(
-        "用地类型",
-        options=["单独选址", "批次用地"],
-        key=generate_key("land_type"),
-        horizontal=True
+    land_type = button_group(
+        label="",
+        options=[{"label": "单独选址", "value": "单独选址"}, {"label": "批次用地", "value": "批次用地"}],
+        default_value="单独选址",
+        key=generate_key("land_type")
     )
 
     # 生成单独选址模板文本
@@ -139,20 +140,18 @@ def page_3():
             st.markdown("#### 项目清单及违法用地情况")
             col1, col2 = st.columns(2)
             with col1:
-                st.session_state.land_use_plan_single['列入重大项目清单'] = st.radio(
-                    "是否列入国家/省重大项目清单", 
-                    options=["是", "否"],
-                    index=0 if st.session_state.land_use_plan_single['列入重大项目清单'] == "是" else 1,
-                    key=generate_key("列入重大项目清单"),
-                    horizontal=True
+                st.session_state.land_use_plan_single['列入重大项目清单'] = button_group(
+                    label="",
+                    options=[{"label": "是", "value": "是"}, {"label": "否", "value": "否"}],
+                    default_value="否",
+                    key=generate_key("列入重大项目清单")
                 )
             with col2:
-                st.session_state.land_use_plan_single['涉及违法用地'] = st.radio(
-                    "是否涉及违法用地", 
-                    options=["是", "否"],
-                    index=0 if st.session_state.land_use_plan_single['涉及违法用地'] == "是" else 1,
-                    key=generate_key("涉及违法用地"),
-                    horizontal=True
+                st.session_state.land_use_plan_single['涉及违法用地'] = button_group(
+                    label="",
+                    options=[{"label": "是", "value": "是"}, {"label": "否", "value": "否"}],
+                    default_value="否",
+                    key=generate_key("涉及违法用地")
                 )
             
             # 如果列入重大项目清单
@@ -259,12 +258,11 @@ def page_3():
             
             # 是否使用专项计划
             st.markdown("#### 计划指标类型")
-            st.session_state.land_use_plan_batch['使用专项计划'] = st.radio(
-                "是否使用专项计划", 
-                options=["是", "否"],
-                index=0 if st.session_state.land_use_plan_batch['使用专项计划'] == "是" else 1,
-                key=generate_key("使用专项计划"),
-                horizontal=True
+            st.session_state.land_use_plan_batch['使用专项计划'] = button_group(
+                label="",
+                options=[{"label": "是", "value": "是"}, {"label": "否", "value": "否"}],
+                default_value="否",
+                key=generate_key("使用专项计划")
             )
             
             if st.session_state.land_use_plan_batch['使用专项计划'] == "是":
