@@ -5,9 +5,15 @@ import sys
 
 # 添加父目录到Python路径，确保可以导入__init__.py中的函数
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 # 直接导入__init__.py中的lineinput函数
 from __init__ import lineinput
+
+# 导入模块化的页面函数
+# 先确保可以访问主目录
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 再添加模块化目录
+modular_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'static', '模块化')
+sys.path.append(modular_dir)
 
 # 初始化会话状态
 def init_session_state():
@@ -31,689 +37,6 @@ def update_variable_cache(component_result):
             return True
     return False
 
-# 1: 基本情况单元
-def page_1():
-    st.subheader("1: 基本情况单元")
-    
-    # 使用侧边栏中设置的用地类型
-    land_type = st.session_state.land_type
-    
-    # 设置默认变量缓存
-    defaults = {
-        # 用地类型
-        '用地类型': st.session_state.land_type,
-        
-        # 预审相关
-        '审批权下放': '否',
-        '下放依据': '下放依据',
-        '审批权下放部门': '*审批权下放至*部门办理',
-        '预审通过年月': '*年*月',
-        '预审自然资源主管部门': '*省自然资源厅',
-        '预审文号': 'XX预审〔202X〕XX号',
-        
-        # 可研相关
-        '可研批复年月': '*年*月',
-        '可研批复部门': '**发展改革部门等批复(或核准、备案)可行性研究报告（或项目申请报告）或按照*规定，**审批权下放至*部门办理，**部门批复（或核准、备案)可行性研究报告（或项目申请报告）',
-        '可研批复文号': 'XX可研〔2024〕XX号',
-        '_2024以后通过预审': '是',
-        '用地预审在可研之后': '否',
-        '投资主管部门': 'XX发展改革委',
-        '核准超期': '未超期',
-        '可研变更': '否',
-        '可研变更批复年月': '*年*月',
-        '可研变更批复部门': '**（国家发展改革委或地方发改部门等）批复（或核准、备案）可行性研究报告变更（或项目申请报告）；或按照**规定，**审批权下放至**部门办理，**部门批复（或核准、备案）可行性研究报告变更（或项目申请报告）。',
-        '可研变更文号': 'XX可研变〔2024〕XX号',
-        
-        # 初设相关
-        '初设批复年月': '*年*月',
-        '初设审批部门': '**（行业主管部门或设计审核单位)批复（或审核通过）',
-        '初设批复文号': 'XX初设〔2024〕XX号',
-        '初设变更': '无变更',
-        '初设变更审批权下放': '按照*规定，*审批权下放至*部门办理，',
-        '初设变更批复年月': '*年*月',
-        '初设变更批复部门': '**（行业主管部门或设计审核单位)批复（或审核通过）',
-        '初设变更文号': 'XX初设变〔2024〕XX号',
-        
-        # 项目基本信息
-        '建设标准或规模': '*(建设标准或规模)建设',
-        '总投资': '0',
-        '分期分段': '否',
-        '按市报批': '项目用地涉及**市、**市，已批准*市用地*公顷，批准文号为*，本次呈报**市用地（建设标准或规模)，涉及投资**亿元。',
-        '分期报批': '根据项目可行性研究报告确定的方案或可行性研究批复，项目分**期建设，本次呈报为*期用地（建设标准或规模），涉及投资**亿元。',
-        '本期不涉及永农红线但需报国务院': '否',
-        
-        # 核减用地情况
-        '市县核减': '未核减',
-        '核减面积': '0.0000',
-        '核减耕地': '0.0000',
-        '核减永农': '0.0000',
-        
-        # 农用地转用情况
-        '转用农用地': '0.0000',
-        '转用耕地': '0.0000',
-        '转用永农': '0.0000',
-        '转用未利用地': '0.0000',
-        '市县区列表': '**市**区、**县',
-        '集体转用农用地': '0.0000',
-        '集体转用耕地': '0.0000',
-        '集体转用永农': '0.0000',
-        '集体转用未利用地': '0.0000',
-        '国有转用农用地': '0.0000',
-        '国有转用耕地': '0.0000',
-        '国有转用永农': '0.0000',
-        '国有转用未利用地': '0.0000',
-        
-        # 矿业复垦
-        '矿业复垦': '否',
-        '复垦验收自然资源部门': 'XX自然资源局',
-        '复垦耕地': '0.0000',
-        '复垦水田': '0.0000',
-        '复垦产能': '100000',
-        '拟用面积': '0.0000',
-        '拟用水田': '0.0000',
-        '拟用产能': '100',
-        
-        # 缴纳新增建设用地土地有偿使用费情况
-        '缴费情形': '有偿使用',
-        '审查机关': 'XX自然资源厅',
-        '圈外新增面积': '8.0',
-        '圈外县区列表': '[{"name":"XX县","等别":"五","area":"8.0"}]',
-        '圈内新增面积': '2.0',
-        '圈内县区列表': '[{"name":"XX县","等别":"五","area":"2.0"}]',
-        '应缴有偿费': '100',
-        '缴费县市区的市县人民政府名称': 'XX县',
-        
-        # 违法用地占用自然保护区或生态保护红线情况
-        '违法涉及保护地': '否',
-        '省林草意见': '说明项目不涉及破坏森林草原湿地或违反自然保护区风景名胜区等管理规定的情形【或：说明存在上述情形已经处罚】',
-        '省生态环境意见': '说明未发现项目破坏生态环境的行为【或：说明存在破坏生态环境的行为已经处罚】。',
-        
-        # 批次用地相关
-        # 基本情况
-        '总面积': '0.0000',
-        '农用地面积': '0.0000',
-        '耕地面积': '0.0000',
-        '可调整地类面积': '0.0000',
-        '建设用地面积': '0.0000',
-        '未利用地面积': '0.0000',
-        '违法用地年份': '*',
-        '无违法用地': '否',
-        '集体土地总面积': '0.0000',
-        '集体农用地': '0.0000',
-        '集体耕地': '0.0000',
-        '集体建设用地': '0.0000',
-        '集体未利用地': '0.0000',
-        '国有土地总面积': '0.0000',
-        '国有农用地': '0.0000',
-        '国有耕地': '0.0000',
-        '国有建设用地': '0.0000',
-        '国有未利用地': '0.0000',
-        # 农转用情况
-        '批次类型': '普通批次',
-        '指标来源': 'XX县自行复垦的增减挂钩指标（或购买XX县的增减挂钩节余指标',
-        '挂钩指标面积': '0.0000',
-        '挂钩水田': '0.0000',
-        '挂钩产能': '0.0000',
-        '新区拟用面积': '0.0000',
-        '新区水田': '0.0000',
-        '新区产能': '0.0000',
-        '分次报批': '否',
-        '已用面积': '0.0000',
-        '已用水田': '0.0000',
-        '已用产能': '0.0000',
-        '本次报批面积': '0.0000',
-        '本次水田': '0.0000',
-        '本次产能': '0.0000',
-        '剩余面积': '0.0000',
-        '剩余水田': '0.0000',
-        '剩余产能': '0.0000',
-        '涉及新增建设用地': '是',
-        '新增建设用地面积': '0.0000',
-        '土地等别': '五',
-        '应缴费用': '100',
-        '缴存方式': '承诺缴纳',
-        '县市区名称': 'XX县'
-    }
-
-    # 头部信息（默认折叠）
-    with st.expander("基本信息（点击展开）", expanded=False):
-        st.markdown("""
-        ### 一、业务指导处室  
-        国土空间用途管制处  
-
-        ### 二、审查标准  
-        1. 符合基本建设投资管理规定。  
-        2. 建设单位已取得建设项目批准（核准或备案）文件、初步设计批准或审核文件，且应当在有效期内。  
-        3. 用地涉及的新增建设用地应按规定缴纳新增建设用地土地有偿使用费，缴纳等级、标准应准确。  
-        4. 1999 年 1 月 1 日之后经依法批准的集体建设用地，在批准农用地转用时未缴纳新增建设用地有偿使用费的，申请土地征收时按照现行标准补缴。  
-
-        ### 三、审查内容模板  
-        """)
-    # 初始化返回结果
-    component_result = {}
-    
-    # 存储每个区块的结果
-    all_results = {}
-    
-    # 根据用地类型分别处理不同区块
-    if land_type == '单独选址':
-        # 区块1: 用地预审情况
-        st.markdown("### 〔用地预审情况〕")
-        # 判断区域
-        审批权下放 = st.radio(
-            "审批权下放",
-            ('是', '否'),
-            index=1,
-            horizontal=True
-        )
-        # 更新会话状态
-        st.session_state.default_values['审批权下放'] = 审批权下放
-        # 根据判断结果生成不同的模板
-        if 审批权下放 == "是":
-            block1_template = '''该项目符合基本建设投资管理规定。按照{{ 下放依据 }}规定，{{ 审批权下放部门 }}，{{ 预审通过年月 }}，该项目通过{{ 预审自然资源主管部门 }}用地预审（文号：{{ 预审文号 }}）。'''
-        else:
-            block1_template = '''该项目符合基本建设投资管理规定。{{ 预审通过年月 }}通过{{ 预审自然资源主管部门 }}用地预审（文号：{{ 预审文号 }}）。'''
-        all_results['block1'] = lineinput(
-            block1_template,
-            default_values=st.session_state.default_values.copy(),
-            key="page_1_block1"
-        )
-        
-        # 区块2: 可研批复情况
-        st.markdown("### 〔可研批复情况〕")
-        # 判断条件
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            _2024以后通过预审 = st.radio(
-                "2024以后通过预审",
-                ('否', '是'),
-                index=0,
-                horizontal=True,
-                key="_2024以后通过预审"
-            )
-            st.session_state.default_values['2024以后通过预审'] = _2024以后通过预审
-
-        with col2:
-            用地预审在可研之后 = st.radio(
-                "用地预审在可研之后",
-                ('否', '是'),
-                index=0,
-                horizontal=True,
-                key="用地预审在可研之后"
-            )
-            st.session_state.default_values['用地预审在可研之后'] = 用地预审在可研之后
-
-        with col3:
-            可研变更 = st.radio(
-                "可研变更",
-                ('否', '是'),
-                index=0,
-                horizontal=True,
-                key="可研变更"
-            )
-            st.session_state.default_values['可研变更'] = 可研变更
-        核准超期 = st.radio(
-            "核准超期",
-            ('未超期', 
-            '项目核准文件超出有效期但项目单位在核准有效期内提出用地申请',
-            '项目超出核准有效期但已获得原批准机关核准延期批复', 
-            '项目超出核准有效期但已获得原批准机关核准延期说明'),
-            index=0,
-            horizontal=True,
-            key="核准超期"
-        )
-        st.session_state.default_values['核准超期'] = 核准超期
-
-        
-        # 根据判断结果生成不同的模板
-        block2_template = '''{{ 可研批复年月 }}，{{ 可研批复部门 }}（文号：{{ 可研批复文号 }}）。'''
-        
-        # 添加附加内容
-        if _2024以后通过预审 == "是":
-            block2_template += '''可行性研究报告（或项目申请报告）已包含用地预审审查后的节约集约用地专章相关内容。'''
-        if 用地预审在可研之后 == "是":
-            block2_template += '''{{ 投资主管部门 }}已出具书面说明并检讨。'''
-        if 核准超期 == "项目核准文件超出有效期但项目单位在核准有效期内提出用地申请":
-            block2_template += '''项目核准文件超出有效期，但项目单位在核准有效期内提出用地申请。'''
-        elif 核准超期 == "项目超出核准有效期但已获得原批准机关核准延期批复":
-            block2_template += '''项目超出核准有效期，但已获得原批准机关核准延期批复。'''
-        elif 核准超期 == "项目超出核准有效期但已获得原批准机关核准延期说明":
-            block2_template += '''项目超出核准有效期，但已获得原批准机关核准延期说明。'''
-        if 可研变更 == "是":
-            block2_template += '''{{ 可研变更批复年月 }}，{{ 可研变更批复部门 }}（文号：{{ 可研变更文号 }}）。'''
-        
-        all_results['block2'] = lineinput(
-            block2_template,
-            default_values=st.session_state.default_values.copy(),
-            key="page_1_block2"
-        )
-        
-        # 区块3: 初步设计批复情况
-        st.markdown("### 〔初步设计批复情况〕")
-        # 判断区域
-        初设变更 = st.radio(
-            "初设变更",
-            ('无变更', '正常审批', '权力下放审批'),
-            index=0,
-            horizontal=True,
-            key="初设变更"
-        )
-        # 更新会话状态
-        st.session_state.default_values['初设变更'] = 初设变更
-        # 根据判断结果生成不同的模板
-        block3_template = '''{{初设批复年月}}，{{初设审批部门}}工程初步设计（文号：{{初设批复文号}}）。'''
-        if 初设变更 == "正常审批":
-            block3_template += '''{{初设变更批复年月}}，{{初设变更审批部门}}工程初步设计变更（文号：{{初设批复文号}}）。'''
-        elif 初设变更 == "权力下放审批":
-            block3_template += '''{{初设变更审批权下放}}，{{初设变更批复年月}}，{{初设变更审批部门}}工程初步设计变更（文号：{{初设批复文号}}）。'''
-        
-        all_results['block3'] = lineinput(
-            block3_template,
-            default_values=st.session_state.default_values.copy(),
-            key="page_1_block3"
-        )
-        
-        # 判断区域
-        col1, col2 = st.columns(2)
-        with col1:
-            分期分段 = st.selectbox(
-                "分期分段",
-                ('无', '按市报批', '分期报批'),
-                index=0
-            )
-            # 更新会话状态
-            st.session_state.default_values['分期分段'] = 分期分段
-        
-        with col2:
-            本期不涉及永农红线但需报国务院 = st.radio(
-                "本期不涉及永农红线但需报国务院",
-                ('否', '是'),
-                index=0,
-                horizontal=True,
-                key="本期不涉及永农红线但需报国务院"
-            )
-            st.session_state.default_values['本期不涉及永农红线但需报国务院'] = 本期不涉及永农红线但需报国务院
-        
-        # 根据判断结果生成不同的模板
-        paragraph_template = '''项目按{{ 建设标准或规模 }}，总投资{{ 总投资 }}亿元。'''
-        if 分期分段 == "按市报批":
-            paragraph_template += '''{{按市报批}}'''
-        elif 分期分段 == "分期报批":
-            paragraph_template += '''{{分期报批}}'''
-        if 本期不涉及永农红线但需报国务院 == "是":
-            paragraph_template += '''该项目整体占用永久基本农田或生态保护红线，本段不涉及永久基本农田或生态保护红线，按规定应呈报国务院审批。'''
-        
-        all_results['paragraph'] = lineinput(
-            paragraph_template,
-            default_values=st.session_state.default_values.copy(),
-            key="page_1_paragraph"
-        )
-        
-        # 区块4: 核减用地情况
-        st.markdown("### 〔核减用地情况〕")
-        # 判断区域
-        市县核减 = st.radio(
-            "市县核减",
-            ('未核减', '有核减'),
-            index=0,
-            horizontal=True
-        )
-        # 更新会话状态
-        st.session_state.default_values['市县核减'] = 市县核减
-        # 根据判断结果生成不同的模板
-        if 市县核减 == "有核减":
-            block4_template = '''该项目用地在市、县级审查中核减用地{{ 核减面积 }}公顷（耕地{{ 核减耕地 }}公顷，含永久基本农田{{ 核减永农 }}公顷）。'''
-        else:
-            block4_template = '''该项目用地在市、县级审查中未核减用地。'''
-        
-        all_results['block4'] = lineinput(
-            block4_template,
-            default_values=st.session_state.default_values.copy(),
-            key="page_1_block4"
-        )
-        
-        # 区块5: 农用地转用情况
-        st.markdown("### 〔农用地转用情况〕")
-        # 判断区域
-        矿业复垦 = st.radio(
-            "矿业用地复垦利用项目",
-            ('否', '是'),
-            index=0,
-            horizontal=True
-        )
-        # 更新会话状态
-        st.session_state.default_values['矿业复垦'] = 矿业复垦
-        # 生成基础模板
-        block5_template = '''本次申请将农用地{{ 转用农用地 }}公顷（耕地{{ 转用耕地 }}公顷，含永久基本农田{{ 转用永农 }}公顷）、未利用地{{ 转用未利用地 }}公顷转为建设用地，其中，{{ 市县区列表 }}农民集体所有农用地{{ 集体转用农用地 }}公顷（耕地{{ 集体转用耕地 }}公顷，永久基本农田{{ 集体转用永农 }}公顷）、未利用地{{ 集体转用未利用地 }}公顷；国有农用地{{ 国有转用农用地 }}公顷（耕地{{ 国有转用耕地 }}公顷，永久基本农田{{ 国有转用永农 }}公顷）、未利用地{{ 国有转用未利用地 }}公顷。'''
-        
-        # 根据判断结果添加附加内容
-        if 矿业复垦 == "是":
-            block5_template += '''{{ 复垦验收自然资源部门 }}已验收该项目复垦区耕地{{ 复垦耕地 }}公顷，其中水田{{ 复垦水田 }}公顷，标准粮食产能{{ 复垦产能 }}公斤；拟使用土地{{ 拟用面积 }}公顷，其中水田{{ 拟用水田 }}公顷，标准粮食产能{{ 拟用产能 }}公斤。建设区土地已全部转为建设用地。'''
-        
-        all_results['block5'] = lineinput(
-            block5_template,
-            default_values=st.session_state.default_values.copy(),
-            key="page_1_block5"
-        )
-        
-        # 区块6: 缴纳新增建设用地土地有偿使用费情况
-        st.markdown("### 〔缴纳新增建设用地土地有偿使用费情况〕")
-        # 判断区域
-        col1, col2 = st.columns(2)
-        with col1:
-            表述方式 = st.radio(
-                "表述方式",
-                ('方式1', '方式2'),
-                index=0,
-                horizontal=True
-            )
-            # 更新会话状态
-            st.session_state.default_values['表述方式'] = 表述方式
-        with col2:
-            缴费情形 = st.radio(
-                "缴费情形",
-                ('有偿使用', '以划拨方式供地'),
-                index=0,
-                horizontal=True
-            )
-            # 更新会话状态
-            st.session_state.default_values['缴费情形'] = 缴费情形
-        
-        # 仅在有偿使用情形下显示表格输入
-        if 缴费情形 == "有偿使用":
-            # 圈外县区列表表格输入
-            st.subheader("圈外县区列表")
-            # 初始化圈外县区列表
-            if '圈外县区_list' not in st.session_state:
-                st.session_state['圈外县区_list'] = []
-                # 尝试从默认值中解析JSON
-                if '圈外县区列表' in st.session_state.default_values:
-                    try:
-                        import json
-                        st.session_state['圈外县区_list'] = json.loads(st.session_state.default_values['圈外县区列表'])
-                    except:
-                        st.session_state['圈外县区_list'] = [{'name': 'XX县', '等别': '五', 'area': '8.0'}]
-            
-            # 显示当前表格数据
-            for i, item in enumerate(st.session_state['圈外县区_list']):
-                col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
-                with col1:
-                    item['name'] = st.text_input(f"县区名称 {i+1}", value=item['name'], key=f"圈外名称_{i}")
-                with col2:
-                    item['等别'] = st.text_input(f"等别 {i+1}", value=item['等别'], key=f"圈外等别_{i}")
-                with col3:
-                    item['area'] = st.text_input(f"面积(公顷) {i+1}", value=item['area'], key=f"圈外面积_{i}")
-                with col4:
-                    if st.button("删除", key=f"圈外删除_{i}"):
-                        st.session_state['圈外县区_list'].pop(i)
-                        st.experimental_rerun()
-            
-            # 添加新行按钮
-            if st.button("添加圈外县区"):
-                st.session_state['圈外县区_list'].append({'name': '', '等别': '', 'area': ''})
-                st.experimental_rerun()
-            
-            # 圈内县区列表表格输入
-            st.subheader("圈内县区列表")
-            # 初始化圈内县区列表
-            if '圈内县区_list' not in st.session_state:
-                st.session_state['圈内县区_list'] = []
-                # 尝试从默认值中解析JSON
-                if '圈内县区列表' in st.session_state.default_values:
-                    try:
-                        import json
-                        st.session_state['圈内县区_list'] = json.loads(st.session_state.default_values['圈内县区列表'])
-                    except:
-                        st.session_state['圈内县区_list'] = [{'name': 'XX县', '等别': '五', 'area': '2.0'}]
-            
-            # 显示当前表格数据
-            for i, item in enumerate(st.session_state['圈内县区_list']):
-                col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
-                with col1:
-                    item['name'] = st.text_input(f"县区名称 {i+1}", value=item['name'], key=f"圈内名称_{i}")
-                with col2:
-                    item['等别'] = st.text_input(f"等别 {i+1}", value=item['等别'], key=f"圈内等别_{i}")
-                with col3:
-                    item['area'] = st.text_input(f"面积(公顷) {i+1}", value=item['area'], key=f"圈内面积_{i}")
-                with col4:
-                    if st.button("删除", key=f"圈内删除_{i}"):
-                        st.session_state['圈内县区_list'].pop(i)
-                        st.experimental_rerun()
-            
-            # 添加新行按钮
-            if st.button("添加圈内县区"):
-                st.session_state['圈内县区_list'].append({'name': '', '等别': '', 'area': ''})
-                st.experimental_rerun()
-            
-            # 更新会话状态中的JSON字符串
-            import json
-            st.session_state.default_values['圈外县区列表'] = json.dumps(st.session_state['圈外县区_list'], ensure_ascii=False)
-            st.session_state.default_values['圈内县区列表'] = json.dumps(st.session_state['圈内县区_list'], ensure_ascii=False)
-        
-        # 根据判断结果生成不同的模板
-        if 表述方式 == "方式1" and 缴费情形 == "有偿使用":
-            # 构建圈外县区文本
-            圈外文本 = ""
-            for 县区 in st.session_state.get('圈外县区_list', []):
-                if 县区['name'] and 县区['等别'] and 县区['area']:
-                    圈外文本 += f"{县区['name']}{县区['等别']}等别{县区['area']}公顷、"
-            # 构建圈内县区文本
-            圈内文本 = ""
-            for 县区 in st.session_state.get('圈内县区_list', []):
-                if 县区['name'] and 县区['等别'] and 县区['area']:
-                    圈内文本 += f"{县区['name']}{县区['等别']}等别{县区['area']}公顷、"
-            
-            block6_template = f'''项目建设涉及国土空间规划确定的城市和村庄、集镇建设用地范围外有偿使用新增建设用地{{ 圈外新增面积 }}公顷，其中：{圈外文本}；项目用地中{{ 圈内新增面积 }}公顷位于国土空间规划确定的城市和村庄、集镇建设用地范围内【或：{{ 审查机关 }}审查通过的国土空间规划确定的城市和村庄、集镇建设用地范围内】，涉及新增建设用地{{ 圈内新增面积 }}公顷，其中：{圈内文本}，共需缴纳新增建设用地土地有偿使用费{{ 应缴有偿费 }}万元。项目所在地{{ 缴费县市区的市县人民政府名称 }}人民政府承诺在批准用地后按有关规定及时足额缴纳（或已预缴）。'''
-        elif 表述方式 == "方式2" and 缴费情形 == "有偿使用":
-            # 构建圈外县区文本
-            圈外文本 = ""
-            for 县区 in st.session_state.get('圈外县区_list', []):
-                if 县区['name'] and 县区['等别'] and 县区['area']:
-                    圈外文本 += f"{县区['name']}{县区['等别']}等别{县区['area']}公顷、"
-            # 构建圈内县区文本
-            圈内文本 = ""
-            for 县区 in st.session_state.get('圈内县区_list', []):
-                if 县区['name'] and 县区['等别'] and 县区['area']:
-                    圈内文本 += f"{县区['name']}{县区['等别']}等别{县区['area']}公顷、"
-            
-            block6_template = f'''项目建设涉及{{ 审查机关 }}审查通过的国土空间规划确定的城市和村庄、集镇建设用地范围外有偿使用新增建设用地{{ 圈外新增面积 }}公顷，其中：{圈外文本}；项目用地中{{ 圈内新增面积 }}公顷位于国土空间规划确定的城市和村庄、集镇建设用地范围内【或：{{ 审查机关 }}审查通过的国土空间规划确定的城市和村庄、集镇建设用地范围内】，涉及新增建设用地{{ 圈内新增面积 }}公顷，其中：{圈内文本}，共需缴纳新增建设用地土地有偿使用费{{ 应缴有偿费 }}万元。项目所在地{{ 缴费县市区的市县人民政府名称 }}人民政府承诺在批准用地后按有关规定及时足额缴纳（或已预缴）。'''
-        elif 表述方式 == "方式2" and 缴费情形 == "以划拨方式供地":
-            block6_template = '''项目以划拨方式供地，不涉及{{ 审查机关 }}审查通过的国土空间规划确定的城市和村庄、集镇建设用地范围内新增建设用地，按规定不需缴纳新增建设用地土地有偿使用费。'''
-        elif 表述方式 == "方式1" and 缴费情形 == "以划拨方式供地":
-            block6_template = '''项目以划拨方式供地，不涉及国土空间规划确定的城市和村庄、集镇建设用地范围内新增建设用地，按规定不需缴纳新增建设用地土地有偿使用费。'''
-        
-        all_results['block6'] = lineinput(
-            block6_template,
-            default_values=st.session_state.default_values.copy(),
-            key="page_1_block6"
-        )
-        
-        # 区块7: 违法用地占用自然保护区或生态保护红线情况
-        st.markdown("### 〔违法用地占用自然保护区或生态保护红线情况〕")
-        # 判断区域
-        违法涉及保护地 = st.radio(
-            "违法涉及保护地",
-            ('否', '是'),
-            index=0,
-            horizontal=True
-        )
-        # 更新会话状态
-        st.session_state.default_values['违法涉及保护地'] = 违法涉及保护地
-        # 根据判断结果生成不同的模板
-        if 违法涉及保护地 == "是":
-            block7_template = '''该项目违法用地涉及自然保护区或生态保护红线，省级林草主管部门对违法用地占用自然保护区或生态保护红线出具了意见，{{省林草意见}}；省级生态环境主管部门对违法用地占用自然保护区或生态保护红线出具了意见，{{省生态环境意见}}'''
-        else:
-            block7_template = ''''''
-        
-        all_results['block7'] = lineinput(
-            block7_template,
-            default_values=st.session_state.default_values.copy(),
-            key="page_1_block7"
-        )
-    else:
-        # 批次用地模板 - 区块1: 基本情况
-        st.markdown("### 〔基本情况〕")
-        # 判断区域
-        有无可调整地类 = st.radio(
-            "符合：无违法用地或2020年之后发生的违法用地",
-            ('是', '否'),
-            index=0,
-            horizontal=True
-        )
-        # 更新会话状态
-        st.session_state.default_values['有无可调整地类'] = 有无可调整地类
-        # 根据判断结果生成不同的模板
-        if 有无可调整地类 == "是":
-            block1_template = '''该批次实际申请用地情况为：总面积{{总面积}}公顷，其中：农用地{{农用地面积}}公顷（耕地{{耕地面积}}公顷）、建设用地{{建设用地面积}}公顷、未利用地{{未利用地面积}}公顷。\n\n 按权属和地类分：农民集体所有土地{{集体土地总面积}}公顷，其中：农用地{{集体农用地}}公顷（耕地{{集体耕地}}公顷）、建设用地{{集体建设用地}}公顷、未利用地{{集体未利用地}}公顷；国有土地{{国有土地总面积}}公顷，其中：农用地{{国有农用地}}公顷（耕地{{国有耕地}}公顷）、建设用地{{国有建设用地}}公顷、未利用地{{国有未利用地}}公顷，地类和面积准确。'''
-        else:
-            block1_template = '''该批次实际申请用地情况为：总面积{{总面积}}公顷，其中：农用地{{农用地面积}}公顷（耕地{{耕地面积}}公顷；可调整地类{{可调整地类面积}}公顷）、建设用地{{建设用地面积}}公顷、未利用地{{未利用地面积}}公顷。按权属和地类分：农民集体所有土地{{集体土地总面积}}公顷，其中：农用地{{集体农用地}}公顷（耕地{{集体耕地}}公顷）、建设用地{{集体建设用地}}公顷、未利用地{{集体未利用地}}公顷；国有土地{{国有土地总面积}}公顷，其中：农用地{{国有农用地}}公顷（耕地{{国有耕地}}公顷）、建设用地{{国有建设用地}}公顷、未利用地{{国有未利用地}}公顷，地类和面积准确。'''
-        
-        all_results['block1'] = lineinput(
-            block1_template,
-            default_values=st.session_state.default_values.copy(),
-            key="page_1_batch_block1"
-        )
-        
-        # 批次用地模板 - 区块2: 农用地转用情况
-        st.markdown("### 〔农用地转用情况〕")
-        # 判断区域
-        批次类型 = st.radio(
-            "是否为增减挂钩项目",
-            ('普通批次', '增减挂钩批次'),
-            index=0,
-            horizontal=True
-        )
-        # 更新会话状态
-        st.session_state.default_values['批次类型'] = 批次类型
-         
-        # 普通批次
-        if 批次类型 == "普通批次":
-            block2_template = '''该批次申请将农用地{{转用农用地}}公顷（耕地{{转用耕地}}公顷）、未利用地{{转用未利用地}}公顷转为建设用地，其中：农民集体所有农用地{{集体转用农用地}}公顷（耕地{{集体转用耕地}}公顷）、未利用地{{集体转用未利用地}}公顷；国有农用地{{国有转用农用地}}公顷（耕地{{国有转用耕地}}公顷）、未利用地{{国有转用未利用地}}公顷。'''
-        elif 批次类型 == "增减挂钩批次":
-            分次报批 = st.radio(
-                "分次报批",
-                ('否', '是'),
-                index=0,
-                horizontal=True
-            )
-            # 更新会话状态
-            st.session_state.default_values['分次报批'] = 分次报批
-            block2_template = '''该批次使用{{指标来源}}{{挂钩指标面积}}公顷，其中水田{{挂钩水田}}公顷，标准粮食产能{{挂钩产能}}公斤；'''
-            if 分次报批 == "否":
-                block2_template += '''建新区拟使用土地{{新区拟用面积}}公顷，其中水田{{新区水田}}公顷，标准粮食产能{{新区产能}}公斤。建新区土地已全部转为建设用地。'''
-            elif 分次报批 == "是":
-                block2_template += '''建新区已使用{{已用面积}}公顷，其中水田{{已用水田}}公顷，标准粮食产能{{已用产能}}公斤；本次报批{{本次报批面积}}公顷，其中水田{{本次水田}}公顷，标准粮食产能{{本次产能}}公斤；剩余{{剩余面积}}公顷，其中水田{{剩余水田}}公顷，标准粮食产能{{剩余产能}}公斤。建新区土地已全部转为建设用地。'''
-        
-        all_results['block2'] = lineinput(
-            block2_template,
-            default_values=st.session_state.default_values.copy(),
-            key="page_1_batch_block2"
-        )
-        
-        # 批次用地模板 - 区块3: 缴纳新增建设用地土地有偿使用费
-        st.markdown("### 〔缴纳新增建设用地土地有偿使用费〕")
-        # 判断区域
-        涉及新增建设用地 = st.radio(
-            "涉及新增建设用地",
-            ('否', '是'),
-            index=0,
-            horizontal=True
-        )
-        # 更新会话状态
-        st.session_state.default_values['涉及新增建设用地'] = 涉及新增建设用地
-        
-        # 嵌套判断
-        缴存方式 = "承诺缴纳"
-        if 涉及新增建设用地 == "是":
-            缴存方式 = st.radio(
-                "缴存方式",
-                ('承诺缴纳', '已预缴'),
-                index=0,
-                horizontal=True
-            )
-            # 更新会话状态
-            st.session_state.default_values['缴存方式'] = 缴存方式
-        
-        # 根据判断结果生成不同的模板
-        if 涉及新增建设用地 == "是":
-            block3_template = '''〔缴纳新增建设用地土地有偿使用费〕该批次涉及新增建设用地{{新增建设用地面积}}公顷，为{{土地等别}}等别，需缴纳新增建设用地土地有偿使用费{{应缴费用}}万元。'''
-            if 缴存方式 == "承诺缴纳":
-                block3_template += '''{{县市区名称}}人民政府承诺在用地批准后按有关规定及时足额缴纳。'''
-            elif 缴存方式 == "已预缴":
-                block3_template += '''{{县市区名称}}人民政府已按有关规定预缴。'''
-        else:
-            block3_template = '''〔不涉及缴纳新增建设用地土地有偿使用费〕该批次不涉及新增建设用地，不需缴纳新增建设用地土地有偿使用费。'''
-        
-        all_results['block3'] = lineinput(
-            block3_template,
-            default_values=st.session_state.default_values.copy(),
-            key="page_1_batch_block3"
-        )
-    
-    # 更新默认值缓存
-    for k, v in defaults.items():
-        st.session_state.default_values.setdefault(k, v)
-    
-    # 合并所有区块的结果
-    for block_result in all_results.values():
-        if isinstance(block_result, dict):
-            component_result.update(block_result)
-    
-    return component_result
-
-# 13: 信访情况单元
-def page_13():
-    st.subheader("13: 信访情况单元")
-    # 头部信息（默认折叠）
-    with st.expander("基本信息（点击展开）", expanded=False):
-        st.markdown("""
-        ### 一、业务指导处室  
-        办公室
-
-        ### 二、审查标准  
-        存在的信访问题已妥善解决。
-        """)
-    
-    # 添加判断按钮，让用户选择是否发生信访（横向排列）
-    st.subheader("信访状态选择")
-    has_letter = st.radio(
-        "是否发生信访?",
-        ('是', '否'),
-        index=1,  # 默认选择"否"
-        horizontal=True  # 横向排列按钮
-    )
-    
-    # 设置默认变量缓存
-    defaults = {
-        '是否发生信访': has_letter,
-        '信访年月': '2025年6月',
-        '信访县乡村': 'XX县XX乡XX村',
-        '信访人姓名': '张三',
-        '信访反映具体内容': '信访反映具体内容',
-        '受理自然资源主管部门': 'XX自然资源局',
-        '处理具体措施': '处理具体措施'
-    }
-    
-    # 根据用户选择生成相应的模板内容
-    if has_letter == '是':
-        # 发生信访的模板
-        fixed_template = '''〔信访处理〕 {{ 信访年月 }}，{{ 信访县乡村 }}村民{{ 信访人姓名 }}来信（访）反映该批次拟占地块{{ 信访反映具体内容 }}。{{ 受理自然资源主管部门 }}进行了认真调查处理，{{ 处理具体措施 }}。目前，信访群众反映的问题已得到妥善解决，信访人表示不再上访。'''
-    else:
-        # 未发生信访的模板
-        fixed_template = '''〔信访处理〕 该批次用地截至目前未收到相关信访事项。'''
-
-    for k, v in defaults.items():
-        st.session_state.default_values.setdefault(k, v)
-
-    # 调用组件，传递模板和默认值字典（确保使用最新的会话状态值）
-    component_result = lineinput(
-        fixed_template, 
-        default_values=st.session_state.default_values.copy(),  # 创建副本以确保使用最新值
-        key="page_13_" + has_letter  # 使用不同的key以确保在切换选项时重新渲染组件
-    )
-    return component_result
-
 # 主应用逻辑
 if __name__ == "__main__":
     # 初始化会话状态
@@ -731,22 +54,60 @@ if __name__ == "__main__":
     
     # 增加侧边栏导航
     st.sidebar.title("模块单元")
-    page = st.sidebar.selectbox(
-        "选择模块",
-        ["1: 基本情况单元", "13: 信访处理模板", "测试1"],
-        index=0  # 默认选中模块1
+    
+    # 在这里动态导入，避免文件顶部导入的缓存问题
+    modules = {}
+    
+    # 动态导入所有page_1到page_13模块
+    for page_num in range(1, 14):
+        module_name = f"page_{page_num}"
+        if module_name not in globals():
+            try:
+                # 使用importlib动态导入模块
+                import importlib.util
+                module_path = os.path.join(modular_dir, f"{module_name}.py")
+                
+                if os.path.exists(module_path):
+                    spec = importlib.util.spec_from_file_location(module_name, module_path)
+                    module = importlib.util.module_from_spec(spec)
+                    globals()[module_name] = module
+                    spec.loader.exec_module(module)
+                    
+                    # 将模块的主函数添加到字典中
+                    if hasattr(module, module_name):
+                        # 设置默认的模块显示名称
+                        display_names = {
+                            1: "基本情况",
+                            2: "审核许可",
+                            3: "计划指标",
+                            4: "土地预审",
+                            5: "权属地类",
+                            6: "国土空间规划",
+                            7: "耕地占补平衡及永久基本农田占用补划",
+                            8: "土地征收",
+                            9: "土地利用",
+                            10: "违法用地",
+                            11: "压矿情况",
+                            12: "地灾情况",
+                            13: "信访情况"
+                        }
+                        display_name = display_names.get(page_num, f"模块{page_num}")
+                        modules[f"{page_num}: {display_name}"] = getattr(module, module_name)
+            except Exception as e:
+                st.sidebar.warning(f"导入模块 {module_name} 失败: {str(e)}")
+    
+    # 创建侧边栏选择器
+    selected_module = st.sidebar.selectbox(
+        "选择要查看的模块:",
+        list(modules.keys())
     )
-
-    if page == "1: 基本情况单元":
-        component_result = page_1()
-        st.write(component_result['content'])
-        # 调用函数更新变量缓存
-        update_variable_cache(component_result)
-    elif page == "13: 信访处理模板":
-        component_result = page_13()
-        st.write(component_result['content'])
-        # 调用函数更新变量缓存
-        update_variable_cache(component_result)
+    
+    # 调用选中的模块函数
+    selected_function = modules[selected_module]
+    component_result = selected_function()
+    
+    # 更新会话状态中的变量缓存
+    update_variable_cache(component_result)
     
     # 把缓存显示放到最后就能确保刷新
     with st.sidebar.expander("当前缓存", expanded=False):
