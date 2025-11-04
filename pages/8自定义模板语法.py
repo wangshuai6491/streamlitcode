@@ -243,16 +243,15 @@ class TemplateParser:
         if not group_node['options']:
             raise ValueError(f"Empty options in {{% {tag_type} {group_node['name']} %}}")
 
-# 自定义按钮样式，用来替带系统的st.radio
+# 自定义按钮组样式
 def button_group(
     label: str = "",
     options: List[Dict[str, Union[str, bool]]] = None,
     default_value: Union[str, bool] = None,
     key: str = None
-) -> Union[str, bool]:
+    ) -> Union[str, bool]:
     """
     创建一个选择按钮组
-    
     Args:
         label: 组件标签
         options: 选项列表，每个选项包含 label 和 value
@@ -271,11 +270,10 @@ def button_group(
     if default_value is None:
         default_value = options[0]["value"]
     
-    # 生成唯一键
+    # 初始化 session state
     if key is None:
         key = f"button_group_{label}"
     
-    # 初始化 session state
     if key not in st.session_state:
         st.session_state[key] = default_value
     
@@ -283,13 +281,55 @@ def button_group(
     if label:
         st.write(label)
     
-    current_value = st.session_state[key]
-
+    # 创建按钮组布局
     cols = st.columns(len(options))
+    
+    current_value = st.session_state[key]
     
     for i, option in enumerate(options):
         with cols[i]:
             is_selected = current_value == option["value"]
+            
+            # 按钮样式
+            button_style = """
+            <style>
+            .btn-group-button {
+                width: 100%;
+                padding: 0.5rem 1rem;
+                border: 1px solid #d1d5db;
+                background-color: white;
+                color: #374151;
+                font-size: 0.875rem;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }
+            .btn-group-button:hover {
+                background-color: #f3f4f6;
+            }
+            .btn-group-button.selected {
+                background-color: #3b82f6;
+                color: white;
+                border-color: #3b82f6;
+            }
+            .btn-group-button:first-child {
+                border-top-left-radius: 0.5rem;
+                border-bottom-left-radius: 0.5rem;
+            }
+            .btn-group-button:last-child {
+                border-top-right-radius: 0.5rem;
+                border-bottom-right-radius: 0.5rem;
+            }
+            .btn-group-button:not(:first-child):not(:last-child) {
+                border-radius: 0;
+            }
+            </style>
+            """
+            
+            # 按钮类名
+            button_class = "btn-group-button"
+            if is_selected:
+                button_class += " selected"
             
             # 创建按钮
             if st.button(
@@ -300,7 +340,10 @@ def button_group(
             ):
                 st.session_state[key] = option["value"]
                 st.rerun()
-    
+    # 打印当前选中的值
+    st.write(f"当前选中的值: {st.session_state[key]}")
+    # 更新会话状态中的默认值缓存
+    st.session_state.default_values[key] = st.session_state[key]
     return st.session_state[key]
 
 # 更新会话状态中的变量缓存
@@ -390,10 +433,10 @@ def render_element(element):
         button_options = [{"label": opt, "value": opt} for opt in options]
         # 使用name作为key的一部分
         key = f"radio_{name}"
-        # 渲染按钮组
-        value = button_group(f"{name}: ", button_options, default_value=options[0] if options else None, key=key)
-        # 保存到default_values
-        st.session_state.default_values[name] = value
+        # 渲染按钮组 - button_group内部会自动更新default_values
+        value = button_group(f"{name}: ", button_options, 
+                           default_value=st.session_state.default_values.get(name, options[0] if options else None), 
+                           key=key)
         return value
     
     elif element_type == 'select':
@@ -402,23 +445,28 @@ def render_element(element):
         options = element.get('options', [])
         # 使用name作为key
         key = f"select_{name}"
-        # 初始化session state
+        # 从default_values获取当前值作为默认值
+        default_value = st.session_state.default_values.get(name)
+        # 初始化session state，优先使用default_values中的值
         if key not in st.session_state and options:
-            st.session_state[key] = options[0]
+            st.session_state[key] = default_value if default_value in options else options[0]
         # 渲染下拉列表
         value = st.selectbox(name, options, key=key)
-        # 保存到default_values
+        # 立即保存到default_values，确保及时更新
         st.session_state.default_values[name] = value
         return value
     
     # 处理if_bool类型
     elif element_type == 'if_bool':
         condition = element.get('condition', '')
-        # 创建一个checkbox
-        value = st.checkbox(f"{condition}（勾选表示条件成立）")
-        
-        # 保存条件结果到default_values
-        st.session_state.default_values[condition] = value
+        # 创建按钮组选项（是/否）
+        button_options = [{"label": "✅" + condition, "value": True}, {"label": "❌否", "value": False}]
+        # 使用condition作为key的一部分
+        key = f"if_bool_{condition}"
+        # 渲染按钮组 - button_group内部会自动更新default_values
+        value = button_group(f"{condition}（是否成立）: ", button_options, 
+                           default_value=st.session_state.default_values.get(condition, False), 
+                           key=key)
         
         # 根据条件渲染相应内容
         if value:
@@ -436,15 +484,22 @@ def render_element(element):
         condition_var = element.get('condition_var', '')
         condition_value = element.get('condition_value', '')
         
-        # 优先从default_values中获取变量值
-        if condition_var in st.session_state.default_values:
-            value = st.session_state.default_values[condition_var]
-        else:
-            # 创建输入框并设置默认值
-            value = st.text_input(f"请输入{condition_var}的值：", value=condition_value)
+        # 收集所有可能的条件值作为按钮选项
+        button_options = [{"label": condition_value, "value": condition_value}]
+        elif_conditions = element.get('elif_conditions', [])
+        for elif_cond in elif_conditions:
+            elif_value = elif_cond.get('condition_value', '')
+            if elif_value and elif_value not in [opt['value'] for opt in button_options]:
+                button_options.append({"label": elif_value, "value": elif_value})
         
-        # 保存变量值到default_values
-        st.session_state.default_values[condition_var] = value
+        # 使用condition_var作为key的一部分
+        key = f"if_tj_{condition_var}"
+        
+        # 获取当前值（用于默认选择）
+        current_value = st.session_state.default_values.get(condition_var, condition_value)
+        
+        # 渲染按钮组 - button_group内部会自动更新default_values
+        value = button_group(f"请选择{condition_var}的值：", button_options, default_value=current_value, key=key)
         
         # 渲染相应内容
         matched = False
@@ -454,7 +509,6 @@ def render_element(element):
             matched = True
         else:
             # 检查elif条件
-            elif_conditions = element.get('elif_conditions', [])
             for elif_cond in elif_conditions:
                 if value == elif_cond.get('condition_value', ''):
                     body = elif_cond.get('body', [])
@@ -507,9 +561,28 @@ def main(template):
     """
     # 页面标题
     st.title('数据渲染组件')
+    
     # 初始化session_state中的default_values字典
     if 'default_values' not in st.session_state:
         st.session_state.default_values = {}
+    
+    # 检测模板变化并清理旧的组件session_state
+    if 'last_template' not in st.session_state or st.session_state.last_template != template:
+        # 保存当前模板
+        st.session_state.last_template = template
+        
+        # 清除所有组件相关的session_state（避免冲突）
+        keys_to_delete = []
+        for key in st.session_state:
+            if key.startswith(('radio_', 'select_', 'if_bool_', 'if_tj_', 'button_group_', 'lineinput_')):
+                keys_to_delete.append(key)
+        
+        # 执行删除
+        for key in keys_to_delete:
+            del st.session_state[key]
+        
+        # 可以选择保留default_values，或者在这里也清空它
+        # st.session_state.default_values = {}
     
     # 测试按钮组
     st.subheader("1. 自定义选项")
@@ -533,6 +606,11 @@ def main(template):
 if __name__ == "__main__":
     # 自定义语法内容
     template = st.text_area("请输入自定义模板语法：", height=300)
+    # 侧边栏增加一键清空按钮
+    if st.sidebar.button("一键清空"):
+        st.session_state.default_values = {}
+        st.rerun()
+    
     # 只有template不为空时才解析
     if template.strip():
         main(template)
