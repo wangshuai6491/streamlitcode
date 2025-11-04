@@ -342,8 +342,6 @@ def button_group(
                 st.rerun()
     # 打印当前选中的值
     st.write(f"当前选中的值: {st.session_state[key]}")
-    # 更新会话状态中的默认值缓存
-    st.session_state.default_values[key] = st.session_state[key]
     return st.session_state[key]
 
 # 更新会话状态中的变量缓存
@@ -437,6 +435,7 @@ def render_element(element):
         value = button_group(f"{name}: ", button_options, 
                            default_value=st.session_state.default_values.get(name, options[0] if options else None), 
                            key=key)
+        st.session_state.default_values[name] = value
         return value
     
     elif element_type == 'select':
@@ -467,7 +466,7 @@ def render_element(element):
         value = button_group(f"{condition}（是否成立）: ", button_options, 
                            default_value=st.session_state.default_values.get(condition, False), 
                            key=key)
-        
+        st.session_state.default_values[name] = value
         # 根据条件渲染相应内容
         if value:
             body = element.get('if_body', [])
