@@ -323,8 +323,6 @@ def process_text_content(content):
     
     Args:
         content: 文本内容
-        element_name: 元素名称
-        variables: 变量字典
     
     Returns:
         渲染后的结果
@@ -365,13 +363,12 @@ def process_text_content(content):
         return content
 
 # 处理判断类元素，如if、radio、select等
-def render_element(element, variables=None):
+def render_element(element):
     """
     渲染单个元素
     
     Args:
         element: 要渲染的元素字典
-        variables: 变量字典，用于存储和获取用户输入的值
     
     Returns:
         渲染后的结果（如果有）
@@ -395,8 +392,7 @@ def render_element(element, variables=None):
         key = f"radio_{name}"
         # 渲染按钮组
         value = button_group(f"{name}: ", button_options, default_value=options[0] if options else None, key=key)
-        # 保存到变量字典和default_values
-        variables[name] = value
+        # 保存到default_values
         st.session_state.default_values[name] = value
         return value
     
@@ -411,30 +407,28 @@ def render_element(element, variables=None):
             st.session_state[key] = options[0]
         # 渲染下拉列表
         value = st.selectbox(name, options, key=key)
-        # 保存到变量字典和default_values
-        variables[name] = value
+        # 保存到default_values
         st.session_state.default_values[name] = value
         return value
     
     # 处理if_bool类型
     elif element_type == 'if_bool':
         condition = element.get('condition', '')
-        # 检查条件是否存在于变量中，或者创建一个checkbox
-        if condition not in variables:
-            variables[condition] = st.checkbox(f"{condition}（勾选表示条件成立）")
+        # 创建一个checkbox
+        value = st.checkbox(f"{condition}（勾选表示条件成立）")
         
-        # 保存条件结果到default_values和session_state
-        st.session_state.default_values[condition] = variables[condition]
+        # 保存条件结果到default_values
+        st.session_state.default_values[condition] = value
         
         # 根据条件渲染相应内容
-        if variables[condition]:
+        if value:
             body = element.get('if_body', [])
         else:
             body = element.get('else_body', [])
         
         # 渲染body中的内容
         for item in body:
-            render_element(item, variables)
+            render_element(item)
         return
     
     # 处理if_tj类型
@@ -444,26 +438,25 @@ def render_element(element, variables=None):
         
         # 优先从default_values中获取变量值
         if condition_var in st.session_state.default_values:
-            variables[condition_var] = st.session_state.default_values[condition_var]
-        # 如果default_values中没有，则检查variables字典
-        elif condition_var not in variables:
+            value = st.session_state.default_values[condition_var]
+        else:
             # 创建输入框并设置默认值
-            variables[condition_var] = st.text_input(f"请输入{condition_var}的值：", value=condition_value)
+            value = st.text_input(f"请输入{condition_var}的值：", value=condition_value)
         
-        # 保存变量值到default_values和session_state
-        st.session_state.default_values[condition_var] = variables[condition_var]
+        # 保存变量值到default_values
+        st.session_state.default_values[condition_var] = value
         
         # 渲染相应内容
         matched = False
         # 检查主条件：比较变量值是否等于条件值
-        if variables.get(condition_var) == condition_value:
+        if value == condition_value:
             body = element.get('if_body', [])
             matched = True
         else:
             # 检查elif条件
             elif_conditions = element.get('elif_conditions', [])
             for elif_cond in elif_conditions:
-                if variables.get(condition_var) == elif_cond.get('condition_value', ''):
+                if value == elif_cond.get('condition_value', ''):
                     body = elif_cond.get('body', [])
                     matched = True
                     break
@@ -473,7 +466,7 @@ def render_element(element, variables=None):
         
         # 渲染body中的内容
         for item in body:
-            render_element(item, variables)
+            render_element(item)
         return
     
     return None
@@ -486,18 +479,14 @@ def render_content(content_list):
     Args:
         content_list: 内容元素列表
     """
-    variables = {}
     for element in content_list:
-        render_element(element, variables)
-    
-    # 同步所有变量到default_values字典
-    st.session_state.default_values.update(variables)
+        render_element(element)
     
     # 将所有解析结果保存到session_state（用于展示）
     if 'parsed_results' not in st.session_state:
         st.session_state['parsed_results'] = {}
     # 更新session_state中的解析结果
-    st.session_state['parsed_results'].update(variables)
+    st.session_state['parsed_results'].update(st.session_state.default_values)
 
 # 解析模板为AST模板json的主函数
 def ast(template):
