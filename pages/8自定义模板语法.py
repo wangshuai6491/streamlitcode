@@ -244,12 +244,7 @@ class TemplateParser:
             raise ValueError(f"Empty options in {{% {tag_type} {group_node['name']} %}}")
 
 # 自定义按钮组样式
-def button_group(
-    label: str = "",
-    options: List[Dict[str, Union[str, bool]]] = None,
-    default_value: Union[str, bool] = None,
-    key: str = None
-    ) -> Union[str, bool]:
+def button_group(label: str = "",options: List[Dict[str, Union[str, bool]]] = None,default_value: Union[str, bool] = None,key: str = None) -> Union[str, bool]:
     """
     创建一个选择按钮组
     Args:
@@ -273,9 +268,9 @@ def button_group(
     # 初始化 session state
     if key is None:
         key = f"button_group_{label}"
-    
-    if key not in st.session_state:
-        st.session_state[key] = default_value
+    # 如果session_state..default_values中没有该key，初始化默认值
+    if key not in st.session_state.default_values:
+        st.session_state.default_values[key] = default_value
     
     # 显示标签
     if label:
@@ -284,7 +279,7 @@ def button_group(
     # 创建按钮组布局
     cols = st.columns(len(options))
     
-    current_value = st.session_state[key]
+    current_value = st.session_state.default_values[key]
     
     for i, option in enumerate(options):
         with cols[i]:
@@ -338,11 +333,10 @@ def button_group(
                 use_container_width=True,
                 type="primary" if is_selected else "secondary"
             ):
-                st.session_state[key] = option["value"]
+                st.session_state.default_values[key] = option["value"]
                 st.rerun()
-    # 打印当前选中的值
-    st.write(f"当前选中的值: {st.session_state[key]}")
-    return st.session_state[key]
+
+    return st.session_state.default_values[key]
 
 # 更新会话状态中的变量缓存
 def update_variable_cache(component_result):
@@ -388,8 +382,9 @@ def process_text_content(content):
             # 检查是否有默认值（支持:和=两种格式）
             default_value = match[1].strip() if match[1] else (match[2].strip() if match[2] else '')
             
-            # 只存储到default_values字典中
-            st.session_state.default_values[var_name] = default_value
+            # 只有在default_values中没有对应变量或值为空时才存储默认值
+            if var_name not in st.session_state.default_values or st.session_state.default_values[var_name] == '':
+                st.session_state.default_values[var_name] = default_value
         # 调用lineinput组件渲染内容
         component_result = lineinput(
             content, 
@@ -429,44 +424,33 @@ def render_element(element):
         options = element.get('options', [])
         # 转换选项格式为button_group需要的格式
         button_options = [{"label": opt, "value": opt} for opt in options]
-        # 使用name作为key的一部分
-        key = f"radio_{name}"
-        # 渲染按钮组 - button_group内部会自动更新default_values
+        # 直接用name作为key渲染按钮组 - button_group内部会自动更新default_values
         value = button_group(f"{name}: ", button_options, 
                            default_value=st.session_state.default_values.get(name, options[0] if options else None), 
-                           key=key)
-        st.session_state.default_values[name] = value
+                           key=f"{name}")
         return value
     
     elif element_type == 'select':
         # 生成下拉列表
         name = element.get('name', '')
         options = element.get('options', [])
-        # 使用name作为key
-        key = f"select_{name}"
-        # 从default_values获取当前值作为默认值
-        default_value = st.session_state.default_values.get(name)
-        # 初始化session state，优先使用default_values中的值
-        if key not in st.session_state and options:
-            st.session_state[key] = default_value if default_value in options else options[0]
-        # 渲染下拉列表
-        value = st.selectbox(name, options, key=key)
-        # 立即保存到default_values，确保及时更新
+        # 这是系统组件，会自动维护session_state
+        # 渲染下拉列表，使用name作为key
+        value = st.selectbox(name, options, key=name)
+        # 同步结果到default_values
         st.session_state.default_values[name] = value
         return value
     
     # 处理if_bool类型
     elif element_type == 'if_bool':
+        # 获取布尔判断条件
         condition = element.get('condition', '')
         # 创建按钮组选项（是/否）
         button_options = [{"label": "✅" + condition, "value": True}, {"label": "❌否", "value": False}]
-        # 使用condition作为key的一部分
-        key = f"if_bool_{condition}"
         # 渲染按钮组 - button_group内部会自动更新default_values
-        value = button_group(f"{condition}（是否成立）: ", button_options, 
+        value = button_group("", button_options, 
                            default_value=st.session_state.default_values.get(condition, False), 
-                           key=key)
-        st.session_state.default_values[name] = value
+                           key=condition)
         # 根据条件渲染相应内容
         if value:
             body = element.get('if_body', [])
@@ -490,15 +474,11 @@ def render_element(element):
             elif_value = elif_cond.get('condition_value', '')
             if elif_value and elif_value not in [opt['value'] for opt in button_options]:
                 button_options.append({"label": elif_value, "value": elif_value})
-        
-        # 使用condition_var作为key的一部分
-        key = f"if_tj_{condition_var}"
-        
         # 获取当前值（用于默认选择）
         current_value = st.session_state.default_values.get(condition_var, condition_value)
         
         # 渲染按钮组 - button_group内部会自动更新default_values
-        value = button_group(f"请选择{condition_var}的值：", button_options, default_value=current_value, key=key)
+        value = button_group(f"请选择{condition_var}的值：", button_options, default_value=current_value, key=condition_var)
         
         # 渲染相应内容
         matched = False
@@ -532,14 +512,12 @@ def render_content(content_list):
     Args:
         content_list: 内容元素列表
     """
+    # 初始化session_state中的default_values字典，用于储存用户输入的默认值
+    if 'default_values' not in st.session_state:
+        st.session_state.default_values = {}
+    # 开始逐个元素渲染
     for element in content_list:
         render_element(element)
-    
-    # 将所有解析结果保存到session_state（用于展示）
-    if 'parsed_results' not in st.session_state:
-        st.session_state['parsed_results'] = {}
-    # 更新session_state中的解析结果
-    st.session_state['parsed_results'].update(st.session_state.default_values)
 
 # 解析模板为AST模板json的主函数
 def ast(template):
@@ -558,33 +536,6 @@ def main(template):
     """
     主函数，包含页面标题、初始化会话状态、测试按钮组和解析模板逻辑
     """
-    # 页面标题
-    st.title('数据渲染组件')
-    
-    # 初始化session_state中的default_values字典
-    if 'default_values' not in st.session_state:
-        st.session_state.default_values = {}
-    
-    # 检测模板变化并清理旧的组件session_state
-    if 'last_template' not in st.session_state or st.session_state.last_template != template:
-        # 保存当前模板
-        st.session_state.last_template = template
-        
-        # 清除所有组件相关的session_state（避免冲突）
-        keys_to_delete = []
-        for key in st.session_state:
-            if key.startswith(('radio_', 'select_', 'if_bool_', 'if_tj_', 'button_group_', 'lineinput_')):
-                keys_to_delete.append(key)
-        
-        # 执行删除
-        for key in keys_to_delete:
-            del st.session_state[key]
-        
-        # 可以选择保留default_values，或者在这里也清空它
-        # st.session_state.default_values = {}
-    
-    # 测试按钮组
-    st.subheader("1. 自定义选项")
     # 开始解析模板
     neirong = ast(template)
     if neirong:
@@ -600,13 +551,48 @@ def main(template):
 
     # 把session_state中的解析结果直接以JSON格式展示
     st.subheader("2. 解析结果")
-    st.write(st.session_state.default_values)
+    st.write(st.session_state)
 
 if __name__ == "__main__":
+    # 页面标题
+    st.title('数据渲染组件')
     # 自定义语法内容
     template = st.text_area("请输入自定义模板语法：", height=300)
     # 侧边栏增加一键清空按钮
-    if st.sidebar.button("一键清空"):
+    # 状态管理功能
+    col1, col2 = st.sidebar.columns(2)
+    
+    # 保存当前状态
+    if col1.button("保存输入"):
+        import json
+        import time
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        filename = f"session_state_{timestamp}.json"
+        
+        # 保存default_values字典
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(st.session_state.default_values, f, ensure_ascii=False, indent=2)
+        
+        st.sidebar.success(f"状态已保存到 {filename}")
+    
+    # 导入状态
+    uploaded_file = st.sidebar.file_uploader("导入已填数据文件", type=["json"])
+    if uploaded_file is not None:
+        import json
+        try:
+            # 读取上传的文件内容
+            file_content = uploaded_file.read().decode('utf-8')
+            imported_state = json.loads(file_content)
+            
+            # 更新default_values字典
+            st.session_state.default_values = imported_state
+            st.sidebar.success("状态导入成功")
+            st.rerun()
+        except Exception as e:
+            st.sidebar.error(f"导入失败: {str(e)}")
+    
+    # 一键清空
+    if col2.button("清空输入"):
         st.session_state.default_values = {}
         st.rerun()
     
