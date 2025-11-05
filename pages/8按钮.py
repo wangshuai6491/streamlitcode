@@ -8,9 +8,7 @@ def button_group(
     default: Optional[Any] = None,
     key: Optional[str] = None
 ) -> Any:
-    """
-    创建一组互斥的按钮，点击后自动高亮当前选中项。
-    """
+    """互斥按钮组，点击高亮（醒目蓝）"""
     if not options:
         raise ValueError("options 不能为空列表")
     for opt in options:
@@ -32,32 +30,36 @@ def button_group(
     if label:
         st.markdown(f"**{label}**")
 
-    # 动态 CSS
+    # ---------- 核心样式 ----------
     current_value = st.session_state[key]
     css = ""
     for opt in options:
         btn_key = f"{key}_{opt['value']}"
         is_active = opt["value"] == current_value
         bg_color   = "#0066ff" if is_active else "#f7f7f7"
-        # bg_color = "#3b82f6" if is_active else "#ffffff"
-        text_color = "#ffffff" if is_active else "#374151"
-        # border_color = "#3b82f6" if is_active else "#d1d5db"
+        text_color = "#ffffff" if is_active else "#333333"
         border_color = bg_color
+        weight     = "bold" if is_active else "normal"
 
         css += f"""
+        /* 普通状态 */
         button[data-testid="baseButton-secondary"][data-key="{btn_key}"] {{
-            background-color: {bg_color};
-            color: {text_color};
-            border-color: {border_color};
+            background-color: {bg_color} !important;
+            color: {text_color} !important;
+            border-color: {border_color} !important;
+            font-weight: {weight} !important;
             transition: all 0.2s ease;
         }}
-        button[data-testid="baseButton-secondary"][data-key="{btn_key}"]:hover {{
-            background-color: {bg_color}dd;
+        /* 点击/焦点状态：强制覆盖系统浅灰 */
+        button[data-testid="baseButton-secondary"][data-key="{btn_key}"]:focus {{
+            background-color: {bg_color} !important;
+            color: {text_color} !important;
+            border-color: {border_color} !important;
         }}
         """
     st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
 
-    # 创建按钮
+    # ---------- 创建按钮 ----------
     cols = st.columns(len(options))
     for col, opt in zip(cols, options):
         with col:
@@ -67,14 +69,13 @@ def button_group(
                 use_container_width=True
             ):
                 st.session_state[key] = opt["value"]
-
+                # 不手动 rerun，Streamlit 会自动 rerun
     return st.session_state[key]
 
 # ------------------ 演示 ------------------
 st.set_page_config(page_title="Button Group Demo", layout="centered")
-st.title("🔘 Button Group 零刷新测试")
+st.title("🔘 Button Group 高亮测试")
 
-# 1. 单组
 choice = button_group(
     label="请选择你最喜欢的水果：",
     options=[
@@ -86,23 +87,3 @@ choice = button_group(
     key="fruit"
 )
 st.write("当前选中：", choice)
-
-# 2. 多组并存，验证 key 隔离
-st.subheader("第二组按钮（城市）")
-city = button_group(
-    label="请选择你所在的城市：",
-    options=[
-        {"label": "北京", "value": "bj"},
-        {"label": "上海", "value": "sh"},
-        {"label": "广州", "value": "gz"},
-        {"label": "深圳", "value": "sz"},
-    ],
-    default="sh",
-    key="city"
-)
-st.write("当前城市：", city)
-
-# 3. 动态行为示例
-if st.button("把水果重置为葡萄"):
-    st.session_state["fruit"] = "grape"
-    st.rerun()
