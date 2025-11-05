@@ -36,7 +36,7 @@ def lineinput(name, default_values=None, key=None):
     if default_values is None:
         default_values = {}
     if key is None:
-         key = hashlib.md5(name.encode('utf-8')).hexdigest()[:8]
+         key = 'linetext_' + hashlib.md5(name.encode('utf-8')).hexdigest()[:8]
     # 调用底层组件函数，传入name和default_values参数
     component_value = _component_func(name=name, default_values=default_values, key=key, default={"variables": {}, "content": "等待用户输入..."})
     
@@ -64,7 +64,10 @@ class TemplateParser:
             'radio_end': re.compile(r'{%\s*endradio\s*%}'),
             # 下拉列表：{% select 列表名 %}选项1|选项2{% endselect %}
             'select_start': re.compile(r'{%\s*select\s+([\w\u4e00-\u9fa5]+)\s*%}'),
-            'select_end': re.compile(r'{%\s*endselect\s*%}')
+            'select_end': re.compile(r'{%\s*endselect\s*%}'),
+            # 开关组：{% toggle 内容标签 %}内容{% endtoggle %}
+            'toggle_start': re.compile(r'{%\s*toggle\s+([\w\u4e00-\u9fa5]+)\s*%}'),
+            'toggle_end': re.compile(r'{%\s*endtoggle\s*%}')
         }
 
     def parse(self, template: str) -> List[Dict[str, Any]]:
@@ -85,7 +88,8 @@ class TemplateParser:
             for tag_type in [
                 'if_bool_start', 'if_tj_start', 'elif_tj', 'else', 'if_end', 
                 'radio_start', 'radio_end', 
-                'select_start', 'select_end'
+                'select_start', 'select_end',
+                'toggle_start', 'toggle_end'
             ]:
                 regex = self.CONTROL_REGEX[tag_type]
                 match = regex.match(template, pos)
@@ -95,7 +99,7 @@ class TemplateParser:
                         'type': tag_type,
                         'content': match.group(0),  # 标签原文（如{% if 有信访 %}）
                         'params': match.groups() if tag_type in [
-                            'if_bool_start', 'if_tj_start', 'elif_tj', 'radio_start', 'select_start'
+                            'if_bool_start', 'if_tj_start', 'elif_tj', 'radio_start', 'select_start', 'toggle_start'
                         ] else None
                     })
                     pos = match.end()
@@ -250,6 +254,31 @@ class TemplateParser:
                 self._end_group_tag(stack, 'select')
                 current_nodes = stack[-1]['parent_nodes'] if stack else ast
 
+            elif token['type'] == 'toggle_start':
+                # 开关组开始
+                toggle_name = token['params'][0].strip() if token['params'] else ''
+                toggle_node: Dict[str, Any] = {
+                    'type': 'toggle',
+                    'name': toggle_name,
+                    'content': []  # 收集开关内的内容
+                }
+                current_nodes.append(toggle_node)
+                stack.append({
+                    'parent_nodes': current_nodes,
+                    'current_node': toggle_node,
+                    'tag_type': 'toggle'
+                })
+                current_nodes = toggle_node['content']  # 临时收集开关内的内容
+
+            elif token['type'] == 'toggle_end':
+                # 开关组结束
+                if not stack or stack[-1]['tag_type'] != 'toggle':
+                    raise SyntaxError(f"Unexpected {{% endtoggle %}} (no matching {{% toggle %}})")
+                
+                # 弹出栈顶元素，切换回父节点容器
+                group_info = stack.pop()
+                current_nodes = stack[-1]['parent_nodes'] if stack else ast
+
         if stack:
             # 检查未闭合的控制标签
             unclosed = [s['tag_type'] for s in stack if 'tag_type' in s]
@@ -302,9 +331,9 @@ def button_group(label: str = "",options: List[Dict[str, Union[str, bool]]] = No
     # 初始化 session state
     if key is None:
         key = f"button_group_{label}"
-    # 如果session_state..default_values中没有该key，初始化默认值
-    if key not in st.session_state.default_values:
-        st.session_state.default_values[key] = default_value
+    # 如果session_state中没有该key，初始化默认值
+    if key not in st.session_state:
+        st.session_state[key] = default_value
     
     # 显示标签
     if label:
@@ -315,9 +344,9 @@ def button_group(label: str = "",options: List[Dict[str, Union[str, bool]]] = No
     
     # ---- 回调：立即改状态，无需 rerun 两次 ----
     def _switch(sel):
-        st.session_state.default_values[key] = sel
+        st.session_state[key] = sel
 
-    current_value = st.session_state.default_values[key]
+    current_value = st.session_state[key]
     
     for i, option in enumerate(options):
         with cols[i]:
@@ -371,10 +400,9 @@ def button_group(label: str = "",options: List[Dict[str, Union[str, bool]]] = No
                 use_container_width=True,
                 type="primary" if is_selected else "secondary"
             ):
-                st.session_state.default_values[key] = option["value"]
-                # st.rerun()
-
-    return st.session_state.default_values[key]
+                st.session_state[key] = option["value"]
+                st.rerun()
+    return st.session_state[key]
 
 # 更新会话状态中的变量缓存
 def update_variable_cache(component_result):
@@ -384,7 +412,7 @@ def update_variable_cache(component_result):
         if 'variables' in component_result and isinstance(component_result['variables'], dict):
             # 更新会话状态中的默认值缓存
             for var_name, var_value in component_result['variables'].items():
-                st.session_state.default_values[var_name] = var_value
+                st.session_state[var_name] = var_value
             # st.success("已更新会话状态中的变量值缓存")
             return True
     return False
@@ -421,16 +449,13 @@ def process_text_content(content):
             default_value = match[1].strip() if match[1] else (match[2].strip() if match[2] else '')
             
             # 只有在default_values中没有对应变量或值为空时才存储默认值
-            if var_name not in st.session_state.default_values or st.session_state.default_values[var_name] == '':
-                st.session_state.default_values[var_name] = default_value
+            if var_name not in st.session_state or st.session_state[var_name] == '':
+                st.session_state[var_name] = default_value
         # 调用lineinput组件渲染内容，使用session_state中的计数器确保唯一性
         component_result = lineinput(
             content, 
-            default_values=st.session_state.default_values.copy(),
-            key=f"lineinput_{st.session_state.lineinput_counter}"
+            default_values=st.session_state.copy()
         )
-        # 递增计数器以备下次使用
-        st.session_state.lineinput_counter += 1
         # 更新会话状态中的变量缓存
         update_variable_cache(component_result)
         return component_result  
@@ -440,41 +465,44 @@ def process_text_content(content):
 
 def radio(name, options):
     # 1. 确保 session_state 有默认值
-    if name not in st.session_state.default_values:
+    if name not in st.session_state:
         # 取第一个元素的 value 作为默认
-        st.session_state.default_values[name] = options[0]["value"] if options else None
+        st.session_state[name] = options[0]["value"] if options else None
 
-    default = st.session_state.default_values[name]
+    default = st.session_state[name]
 
     # 2. 原生分支
     if st.session_state.get("use_native", True):
-        # 把 options 转成字符串列表，并找到 default 对应的索引
+        # 把 options 转成字符串列表
         labels = [o["label"] for o in options]
-        idx = next((i for i, o in enumerate(options) if o["value"] == default), 0)
-        val_label = st.radio(name, labels, index=idx, key=f"native_radio_{name}")
-        # 反查出 value
-        val = next(o["value"] for o in options if o["label"] == val_label)
-        st.session_state.default_values[name] = val
-        return val
+        val_label = st.radio(name, labels, key=f"{name}", horizontal=True)
+        # 同步结果到session_state
+        st.session_state[name] = val_label
+        return val_label
 
     # 3. 自定义按钮组分支 —— 直接传原格式
     return button_group(
         label=name,
-        options=options,          # 已经是标准格式，不再包一层
+        options=options,
         default_value=default,
         key=name
     )
 
-
 # 处理下拉列表
 def select(name,options):
-    # 生成下拉列表
-    # 这是系统组件，会自动维护session_state
-    # 渲染下拉列表，使用name作为key
     value = st.selectbox(name, options, key=name)
-    # 同步结果到default_values
-    st.session_state.default_values[name] = value
+    # 同步结果到session_state
+    st.session_state[name] = value
     return value
+
+
+# 处理开关组件toggle
+def toggle(name, value=True):
+    value = st.toggle(name, value=value)
+    # 同步结果到session_state
+    st.session_state[name] = value
+    return value
+    
 # 处理判断类元素，如if、radio、select等
 def render_element(element):
     """
@@ -495,22 +523,26 @@ def render_element(element):
 
     elif element_type == 'radio':
         name   = element.get("name", "")
-        options = element.get("options", [])
-        return radio(name,options)
+        # 将字符串列表转成 dict 列表，确保 radio 函数拿到正确格式
+        raw_options = element.get("options", [])
+        options = [{"label": opt, "value": opt} for opt in raw_options]
+        return radio(name, options)
     
     elif element_type == 'select':
         name = element.get('name', '')
         options = element.get('options', [])
         return select(name,options)
     
+    # 处理开关组件toggle
+    elif element_type == 'toggle':
+        name = element.get('name', '')
+        return toggle(name, value=True)
+    
     # 处理if_bool类型
     elif element_type == 'if_bool':
         # 获取布尔判断条件
         condition = element.get('condition', '')
-        # 创建按钮组选项（是/否）
-        button_options = [{"label": "✅" + condition, "value": True}, {"label": "❌否", "value": False}]
-        # 渲染按钮组 - button_group内部会自动更新default_values
-        value = radio(condition, button_options)
+        value = st.session_state[condition]
         # 根据条件渲染相应内容
         if value:
             body = element.get('if_body', [])
@@ -543,11 +575,12 @@ def render_element(element):
             if other_value not in [opt['value'] for opt in button_options]:
                 button_options.append({'label': '其他', 'value': other_value})
         
-        # 获取当前值（用于默认选择）
-        current_value = st.session_state.default_values.get(condition_var, condition_value)
-        
-        # 渲染按钮组 - button_group内部会自动更新default_values
-        value = radio(condition_var, button_options)
+        # 如果 session_state 中已有该布尔变量，则不再重复渲染，直接复用已有值
+        if condition_var in st.session_state:
+            value = st.session_state[condition_var]
+        else:
+            # 渲染按钮组 - button_group内部会自动更新default_values
+            value = radio(condition_var, button_options)
         
         # 渲染相应内容
         # 特殊处理"都不满足"值 - 直接显示else内容
@@ -603,7 +636,8 @@ def ast(template):
         print(f"解析错误：{e}")
         return None
 
-def setup_sidebar(template):
+# 设置侧边栏功能
+def setup_sidebar():
     """
     设置侧边栏功能，包括状态管理和模板展示
     
@@ -621,7 +655,7 @@ def setup_sidebar(template):
         filename = f"session_state_{timestamp}.json"
         
         # 将 default_values 转为 JSON 字符串
-        json_str = json.dumps(st.session_state.default_values, ensure_ascii=False, indent=2)
+        json_str = json.dumps(st.session_state, ensure_ascii=False, indent=2)
         
         # 提供下载
         st.sidebar.download_button(
@@ -640,7 +674,7 @@ def setup_sidebar(template):
             imported_state = json.loads(file_content)
             
             # 更新default_values字典
-            st.session_state.default_values = imported_state
+            st.session_state = imported_state
             st.sidebar.success("状态导入成功")
             st.rerun()
         except Exception as e:
@@ -648,23 +682,22 @@ def setup_sidebar(template):
     
     # 一键清空
     if col2.button("清空输入"):
-        st.session_state.default_values = {}
+        st.session_state = {}
         st.rerun()
-    
-    # 展示模板和变量
-    with st.sidebar.expander("当前处理模板", expanded=True):
-        st.write(template)    
-    with st.sidebar.expander("当前变量值", expanded=False):
-        st.write(st.session_state)
 
 def parse_and_render(template):
     """
     解析模板并渲染内容
     
     Args:
-        template: 模板字符串
+        template: 模板字符串或列表
     """
+    # 展示模板和变量
+    with st.sidebar.expander("当前处理模板", expanded=False):
+        st.write(template)    
     # 开始解析模板
+    if isinstance(template, list):
+        template = ''.join(template)
     neirong = ast(template)
     if neirong:
         # 在侧边栏展示解析后的AST模板json
@@ -685,14 +718,8 @@ def main(template):
     Args:
         template: 模板字符串
     """
-    # 初始化session_state中的default_values字典
-    if 'default_values' not in st.session_state:
-        st.session_state.default_values = {}
-    # 初始化lineinput计数器
-    if 'lineinput_counter' not in st.session_state:
-        st.session_state.lineinput_counter = 0
     # 设置侧边栏
-    setup_sidebar(template)
+    setup_sidebar()
     # 解析并渲染模板
     parse_and_render(template)
 
