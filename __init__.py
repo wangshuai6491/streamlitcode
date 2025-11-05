@@ -570,7 +570,8 @@ def render_content(content_list):
     for element in content_list:
         render_element(element)
 
-# 解析模板为AST模板json的主函数
+# 解析模板为AST模板json的主函数，并作为不变因素
+@st.cache_data(show_spinner=False)
 def ast(template):
     """
     解析模板为AST模板json,方便程序解析
