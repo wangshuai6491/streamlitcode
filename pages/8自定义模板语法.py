@@ -468,12 +468,21 @@ def render_element(element):
         condition_value = element.get('condition_value', '')
         
         # 收集所有可能的条件值作为按钮选项
-        button_options = [{"label": condition_value, "value": condition_value}]
+        button_options = [{'label': condition_value, 'value': condition_value}]
         elif_conditions = element.get('elif_conditions', [])
         for elif_cond in elif_conditions:
             elif_value = elif_cond.get('condition_value', '')
             if elif_value and elif_value not in [opt['value'] for opt in button_options]:
-                button_options.append({"label": elif_value, "value": elif_value})
+                button_options.append({'label': elif_value, 'value': elif_value})
+        
+        # 如果有else_body，添加一个"其他"选项
+        if element.get('else_body'):
+            # 使用一个特殊标记来表示"其他"选项
+            other_value = '都不满足'
+            # 确保"其他"选项不会与已有选项冲突
+            if other_value not in [opt['value'] for opt in button_options]:
+                button_options.append({'label': '其他', 'value': other_value})
+        
         # 获取当前值（用于默认选择）
         current_value = st.session_state.default_values.get(condition_var, condition_value)
         
@@ -481,21 +490,25 @@ def render_element(element):
         value = button_group(f"请选择{condition_var}的值：", button_options, default_value=current_value, key=condition_var)
         
         # 渲染相应内容
-        matched = False
-        # 检查主条件：比较变量值是否等于条件值
-        if value == condition_value:
-            body = element.get('if_body', [])
-            matched = True
+        # 特殊处理"都不满足"值 - 直接显示else内容
+        if value == "都不满足":
+            body = element.get('else_body', [])
         else:
-            # 检查elif条件
-            for elif_cond in elif_conditions:
-                if value == elif_cond.get('condition_value', ''):
-                    body = elif_cond.get('body', [])
-                    matched = True
-                    break
-            # 如果都不匹配，使用else_body
-            if not matched:
-                body = element.get('else_body', [])
+            matched = False
+            # 检查主条件：比较变量值是否等于条件值
+            if value == condition_value:
+                body = element.get('if_body', [])
+                matched = True
+            else:
+                # 检查elif条件
+                for elif_cond in elif_conditions:
+                    if value == elif_cond.get('condition_value', ''):
+                        body = elif_cond.get('body', [])
+                        matched = True
+                        break
+                # 如果都不匹配，使用else_body
+                if not matched:
+                    body = element.get('else_body', [])
         
         # 渲染body中的内容
         for item in body:
