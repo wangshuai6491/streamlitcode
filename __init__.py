@@ -5,6 +5,7 @@ from typing import List, Dict, Any, Union
 import streamlit as st
 import os
 import json,time
+import hashlib
 
 _RELEASE = True
 if not _RELEASE:
@@ -34,7 +35,8 @@ def lineinput(name, default_values=None, key=None):
     # 如果没有提供默认值，设置为空字典
     if default_values is None:
         default_values = {}
-    
+    if key is None:
+         key = hashlib.md5(name.encode('utf-8')).hexdigest()[:8]
     # 调用底层组件函数，传入name和default_values参数
     component_value = _component_func(name=name, default_values=default_values, key=key, default={"variables": {}, "content": "等待用户输入..."})
     
