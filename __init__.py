@@ -439,27 +439,32 @@ def process_text_content(content):
         return content
 
 def radio(name, options):
-    # 1. 先确保 session_state 里有值
+    # 1. 确保 session_state 有默认值
     if name not in st.session_state.default_values:
-        st.session_state.default_values[name] = options[0] if options else None
+        # 取第一个元素的 value 作为默认
+        st.session_state.default_values[name] = options[0]["value"] if options else None
 
     default = st.session_state.default_values[name]
 
     # 2. 原生分支
     if st.session_state.get("use_native", True):
-        # 把 default 转成 index
-        idx = options.index(default) if default in options else 0
-        val = st.radio(name, options, index=idx, key=f"native_radio_{name}")
+        # 把 options 转成字符串列表，并找到 default 对应的索引
+        labels = [o["label"] for o in options]
+        idx = next((i for i, o in enumerate(options) if o["value"] == default), 0)
+        val_label = st.radio(name, labels, index=idx, key=f"native_radio_{name}")
+        # 反查出 value
+        val = next(o["value"] for o in options if o["label"] == val_label)
         st.session_state.default_values[name] = val
         return val
 
-    # 3. 自定义按钮组分支
+    # 3. 自定义按钮组分支 —— 直接传原格式
     return button_group(
         label=name,
-        options=[{"label": o, "value": o} for o in options],
+        options=options,          # 已经是标准格式，不再包一层
         default_value=default,
         key=name
     )
+
 
 # 处理下拉列表
 def select(name,options):
