@@ -589,11 +589,16 @@ def main(template):
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         filename = f"session_state_{timestamp}.json"
         
-        # 保存default_values字典
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(st.session_state.default_values, f, ensure_ascii=False, indent=2)
+        # 将 default_values 转为 JSON 字符串
+        json_str = json.dumps(st.session_state.default_values, ensure_ascii=False, indent=2)
         
-        st.sidebar.success(f"状态已保存到 {filename}")
+        # 提供下载
+        st.sidebar.download_button(
+            label="点击下载状态文件",
+            data=json_str,
+            file_name=filename,
+            mime="application/json"
+        )
     
     # 导入状态
     uploaded_file = st.sidebar.file_uploader("导入已填数据文件", type=["json"])
