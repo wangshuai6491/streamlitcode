@@ -440,16 +440,21 @@ def process_text_content(content):
 
 # 处理按钮组
 def radio(element):
-    # 生成按钮组
-    name = element.get('name', '')
-    options = element.get('options', [])
-    # 转换选项格式为button_group需要的格式
-    button_options = [{"label": opt, "value": opt} for opt in options]
-    # 直接用name作为key渲染按钮组 - button_group内部会自动更新default_values
-    value = button_group(f"{name}: ", button_options, 
-                        default_value=st.session_state.default_values.get(name, options[0] if options else None), 
-                        key=f"{name}")
-    return value
+    name   = element.get("name", "")
+    options = element.get("options", [])
+    default = st.session_state.default_values.get(name, options[0] if options else None)
+
+    # ---- 用户选择原生组件 ----
+    if st.session_state.get("use_native", True):
+        idx = options.index(default) if default in options else 0
+        val = st.radio(name, options, index=idx, key=name)
+        st.session_state.default_values[name] = val
+        return val
+
+    # ---- 否则走自定义按钮组 ----
+    return button_group(name, [{"label": o, "value": o} for o in options],
+                      default_value=default, key=name)
+
 
 # 处理下拉列表
 def select(element):
@@ -595,6 +600,10 @@ def setup_sidebar(template):
     Args:
         template: 模板字符串
     """
+    # 侧边栏顶部放个 toggle
+    with st.sidebar:
+        use_native = st.toggle("♻️ 使用原生组件（极速）", value=True)
+         st.session_state["use_native"] = use_native
     # 状态管理功能
     col1, col2 = st.sidebar.columns(2)
     # 保存当前状态
