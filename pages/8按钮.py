@@ -38,9 +38,11 @@ def button_group(
     for opt in options:
         btn_key = f"{key}_{opt['value']}"
         is_active = opt["value"] == current_value
-        bg_color = "#3b82f6" if is_active else "#ffffff"
+        bg_color   = "#0066ff" if is_active else "#f7f7f7"
+        # bg_color = "#3b82f6" if is_active else "#ffffff"
         text_color = "#ffffff" if is_active else "#374151"
-        border_color = "#3b82f6" if is_active else "#d1d5db"
+        # border_color = "#3b82f6" if is_active else "#d1d5db"
+        border_color = bg_color
 
         css += f"""
         button[data-testid="baseButton-secondary"][data-key="{btn_key}"] {{
