@@ -614,7 +614,8 @@ def main(template):
     if col2.button("清空输入"):
         st.session_state.default_values = {}
         st.rerun()
-    
+    st.sidebar.subheader("当前会话状态")
+    st.sidebar.write(st.session_state)
     # 开始解析模板
     neirong = ast(template)
     if neirong:
@@ -626,11 +627,6 @@ def main(template):
     else:
         # 解析失败，提示用户检查模板
         st.error("模板解析失败，请检查模板语法。")
-    
-
-    # 把session_state中的解析结果直接以JSON格式展示
-    st.subheader("2. 解析结果")
-    st.write(st.session_state)
 
 if __name__ == "__main__":
     # 教学用折叠块
