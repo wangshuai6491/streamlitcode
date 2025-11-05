@@ -5,7 +5,7 @@ import os
 import sys
 import json,time
 # 添加父目录到Python路径，确保可以导入__init__.py中的函数
-# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # 直接导入__init__.py中的lineinput函数
 from __init__ import main
 

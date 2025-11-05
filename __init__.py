@@ -417,17 +417,26 @@ def process_text_content(content):
             # 只有在default_values中没有对应变量或值为空时才存储默认值
             if var_name not in st.session_state.default_values or st.session_state.default_values[var_name] == '':
                 st.session_state.default_values[var_name] = default_value
+        # 确保process_text_content函数有计数器属性
+        if not hasattr(process_text_content, '_counter'):
+            process_text_content._counter = 0
+        # 使用内容哈希和计数器组合生成唯一key
+        import hashlib
+        content_hash = hashlib.md5(content.encode()).hexdigest()[:8]
+        unique_key = f"lineinput_{process_text_content._counter}_{content_hash}"
+        process_text_content._counter += 1
+        
         # 调用lineinput组件渲染内容
         component_result = lineinput(
             content, 
             default_values=st.session_state.default_values.copy(),
-            key=f"lineinput_{getattr(render_content, '_counter', 0) if hasattr(render_content, '_counter') else 0}"
+            key=unique_key
         )
         # 更新会话状态中的变量缓存
         update_variable_cache(component_result)
         return component_result  
     else:
-        st.write(content)
+        st.markdown(content)
         return content
 
 # 处理判断类元素，如if、radio、select等
@@ -519,7 +528,7 @@ def render_element(element):
         current_value = st.session_state.default_values.get(condition_var, condition_value)
         
         # 渲染按钮组 - button_group内部会自动更新default_values
-        value = button_group(f"请选择{condition_var}的值：", button_options, default_value=current_value, key=condition_var)
+        value = button_group(f"{condition_var}——请选择：", button_options, default_value=current_value, key=condition_var)
         
         # 渲染相应内容
         # 特殊处理"都不满足"值 - 直接显示else内容
@@ -577,10 +586,30 @@ def ast(template):
         print(f"解析错误：{e}")
         return None
 
+def parse_and_render(template):
+    """
+    仅解析和渲染模板的函数，不包含侧边栏设置
+    
+    Args:
+        template: 模板字符串
+    """
+    # 开始解析模板
+    neirong = ast(template)
+    if neirong:
+        # 解析成功，继续渲染
+        render_content(neirong)
+    else:
+        # 解析失败，提示用户检查模板
+        st.error("模板解析失败，请检查模板语法。")
+
 def main(template):
     """
-    主函数，包含页面标题、初始化会话状态、测试按钮组和解析模板逻辑
+    主函数，包含侧边栏设置和初始化会话状态，然后调用解析渲染函数
     """
+    # 初始化session_state中的default_values字典
+    if 'default_values' not in st.session_state:
+        st.session_state.default_values = {}
+    
     # 侧边栏设置
     # 状态管理功能
     col1, col2 = st.sidebar.columns(2)
@@ -619,19 +648,20 @@ def main(template):
     if col2.button("清空输入"):
         st.session_state.default_values = {}
         st.rerun()
-    st.sidebar.subheader("当前会话状态")
-    st.sidebar.write(st.session_state)
-    # 开始解析模板
+    
+    with st.sidebar.expander("当前处理模板", expanded=True):
+        st.write(template)    
+    with st.sidebar.expander("当前变量值", expanded=False):
+        st.write(st.session_state)
+    
+    # 调用解析和渲染函数
+    parse_and_render(template)
+    
+    # 在侧边栏展示解析后的AST模板json（如果成功解析）
     neirong = ast(template)
     if neirong:
-        # 在侧边栏展示解析后的AST模板json
-        with st.sidebar:
+        with st.sidebar.expander("解析后的AST模板", expanded=False):
             st.json(neirong)
-        # 解析成功，继续渲染
-        render_content(neirong)
-    else:
-        # 解析失败，提示用户检查模板
-        st.error("模板解析失败，请检查模板语法。")
 
 if __name__ == "__main__":
     # 教学用折叠块
