@@ -14,7 +14,7 @@ if __name__ == "__main__":
     # 配置侧边栏
     setup_sidebar()
     # 自定义语法内容
-    template = st.text_area("请输入自定义模板语法：", height=300)
+    template = st.sidebar.text_area("请输入自定义模板语法：", height=300)
 
 
     # 只有template不为空时才解析
