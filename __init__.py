@@ -608,7 +608,7 @@ def setup_sidebar(template):
     # 侧边栏顶部放个 toggle
     with st.sidebar:
         use_native = st.toggle("♻️ 使用原生组件（极速）", value=True)
-         st.session_state["use_native"] = use_native
+     st.session_state["use_native"] = use_native
     # 状态管理功能
     col1, col2 = st.sidebar.columns(2)
     # 保存当前状态
