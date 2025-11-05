@@ -1,7 +1,7 @@
 # 注册自定义函数lineinput的固定代码，不要修改
 import streamlit.components.v1 as components
 import re
-from typing import List, Dict, Any, Union
+from typing import List, Dict, Any, Union, Optional
 import streamlit as st
 import os
 import json,time
@@ -307,7 +307,7 @@ class TemplateParser:
             raise ValueError(f"Empty options in {{% {tag_type} {group_node['name']} %}}")
 
 # 自定义按钮组样式
-def button_group(label: str = "",options: List[Dict[str, Union[str, bool]]] = None,default_value: Union[str, bool] = None,key: str = None) -> Union[str, bool]:
+def button_group(label: str = "", options: Optional[List[Dict[str, str]]] = None, default_value: Optional[str] = None, key: Optional[str] = None) -> str:
     """
     创建一个选择按钮组
     Args:
@@ -395,7 +395,7 @@ def button_group(label: str = "",options: List[Dict[str, Union[str, bool]]] = No
             
             # 创建按钮
             if st.button(
-                option["label"],
+                str(option["label"]),  # 确保 label 是字符串类型
                 key=f"{key}_{i}",
                 use_container_width=True,
                 type="primary" if is_selected else "secondary"
@@ -584,6 +584,8 @@ def render_element(element):
         
         # 渲染相应内容
         # 特殊处理"都不满足"值 - 直接显示else内容
+        # 确保body变量在所有情况下都被初始化
+        body = []
         if value == "都不满足":
             body = element.get('else_body', [])
         else:
@@ -803,3 +805,5 @@ if __name__ == "__main__":
     if template.strip():
         main(template)
     
+
+
