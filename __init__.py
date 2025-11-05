@@ -438,29 +438,32 @@ def process_text_content(content):
         st.markdown(content)
         return content
 
-# 处理按钮组
-def radio(element):
-    name   = element.get("name", "")
-    options = element.get("options", [])
-    default = st.session_state.default_values.get(name, options[0] if options else None)
+def radio(name, options):
+    # 1. 先确保 session_state 里有值
+    if name not in st.session_state.default_values:
+        st.session_state.default_values[name] = options[0] if options else None
 
-    # ---- 用户选择原生组件 ----
+    default = st.session_state.default_values[name]
+
+    # 2. 原生分支
     if st.session_state.get("use_native", True):
+        # 把 default 转成 index
         idx = options.index(default) if default in options else 0
-        val = st.radio(name, options, index=idx, key=name)
+        val = st.radio(name, options, index=idx, key=f"native_radio_{name}")
         st.session_state.default_values[name] = val
         return val
 
-    # ---- 否则走自定义按钮组 ----
-    return button_group(name, [{"label": o, "value": o} for o in options],
-                      default_value=default, key=name)
-
+    # 3. 自定义按钮组分支
+    return button_group(
+        label=name,
+        options=[{"label": o, "value": o} for o in options],
+        default_value=default,
+        key=name
+    )
 
 # 处理下拉列表
-def select(element):
+def select(name,options):
     # 生成下拉列表
-    name = element.get('name', '')
-    options = element.get('options', [])
     # 这是系统组件，会自动维护session_state
     # 渲染下拉列表，使用name作为key
     value = st.selectbox(name, options, key=name)
@@ -486,10 +489,14 @@ def render_element(element):
         return process_text_content(content)
 
     elif element_type == 'radio':
-        return radio(element)
+        name   = element.get("name", "")
+        options = element.get("options", [])
+        return radio(name,options)
     
     elif element_type == 'select':
-        return select(element)
+        name = element.get('name', '')
+        options = element.get('options', [])
+        return select(name,options)
     
     # 处理if_bool类型
     elif element_type == 'if_bool':
@@ -498,9 +505,7 @@ def render_element(element):
         # 创建按钮组选项（是/否）
         button_options = [{"label": "✅" + condition, "value": True}, {"label": "❌否", "value": False}]
         # 渲染按钮组 - button_group内部会自动更新default_values
-        value = button_group("", button_options, 
-                           default_value=st.session_state.default_values.get(condition, False), 
-                           key=condition)
+        value = radio(condition, button_options)
         # 根据条件渲染相应内容
         if value:
             body = element.get('if_body', [])
@@ -537,7 +542,7 @@ def render_element(element):
         current_value = st.session_state.default_values.get(condition_var, condition_value)
         
         # 渲染按钮组 - button_group内部会自动更新default_values
-        value = button_group(f"{condition_var}——请选择：", button_options, default_value=current_value, key=condition_var)
+        value = radio(condition_var, button_options)
         
         # 渲染相应内容
         # 特殊处理"都不满足"值 - 直接显示else内容
