@@ -417,15 +417,14 @@ def process_text_content(content):
             # 只有在default_values中没有对应变量或值为空时才存储默认值
             if var_name not in st.session_state.default_values or st.session_state.default_values[var_name] == '':
                 st.session_state.default_values[var_name] = default_value
-        # 调用lineinput组件渲染内容，使用后递增的计数器值确保唯一性
-        current_counter = getattr(render_content, '_counter', 0)
+        # 调用lineinput组件渲染内容，使用session_state中的计数器确保唯一性
         component_result = lineinput(
             content, 
             default_values=st.session_state.default_values.copy(),
-            key=f"lineinput_{current_counter}"
+            key=f"lineinput_{st.session_state.lineinput_counter}"
         )
         # 递增计数器以备下次使用
-        render_content._counter = current_counter + 1
+        st.session_state.lineinput_counter += 1
         # 更新会话状态中的变量缓存
         update_variable_cache(component_result)
         return component_result  
@@ -565,17 +564,8 @@ def render_content(content_list):
     Args:
         content_list: 内容元素列表
     """
-    # 初始化计数器，用于生成唯一的key
-    if not hasattr(render_content, '_counter'):
-        render_content._counter = 0
-    
-    # 初始化session_state中的default_values字典，用于储存用户输入的默认值
-    if 'default_values' not in st.session_state:
-        st.session_state.default_values = {}
     # 开始逐个元素渲染
     for element in content_list:
-        # 递增计数器
-        render_content._counter += 1
         render_element(element)
 
 # 解析模板为AST模板json的主函数
@@ -668,6 +658,12 @@ def main(template):
     Args:
         template: 模板字符串
     """
+    # 初始化session_state中的default_values字典
+    if 'default_values' not in st.session_state:
+        st.session_state.default_values = {}
+    # 初始化lineinput计数器
+    if 'lineinput_counter' not in st.session_state:
+        st.session_state.lineinput_counter = 0
     # 设置侧边栏
     setup_sidebar(template)
     # 解析并渲染模板
