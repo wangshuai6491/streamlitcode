@@ -366,7 +366,7 @@ def button_group(label: str = "",options: List[Dict[str, Union[str, bool]]] = No
                 type="primary" if is_selected else "secondary"
             ):
                 st.session_state.default_values[key] = option["value"]
-                st.rerun()
+                # st.rerun()
 
     return st.session_state.default_values[key]
 
