@@ -313,6 +313,10 @@ def button_group(label: str = "",options: List[Dict[str, Union[str, bool]]] = No
     # 创建按钮组布局
     cols = st.columns(len(options))
     
+    # ---- 回调：立即改状态，无需 rerun 两次 ----
+    def _switch(sel):
+        st.session_state.default_values[key] = sel
+
     current_value = st.session_state.default_values[key]
     
     for i, option in enumerate(options):
@@ -649,7 +653,9 @@ def parse_and_render(template):
         with st.sidebar.expander("解析后的AST模板", expanded=False):
             st.json(neirong)
         # 解析成功，继续渲染
-        render_content(neirong)
+        placeholder = st.empty()
+        with placeholder.container():
+            render_content(neirong)
     else:
         # 解析失败，提示用户检查模板
         st.error("模板解析失败，请检查模板语法。")
