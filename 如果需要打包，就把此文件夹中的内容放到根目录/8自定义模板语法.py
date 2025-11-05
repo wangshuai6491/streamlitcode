@@ -3,9 +3,9 @@ from typing import List, Dict, Any, Union
 import streamlit as st
 import os
 import sys
-import json
+import json,time
 # 添加父目录到Python路径，确保可以导入__init__.py中的函数
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # 直接导入__init__.py中的lineinput函数
 from __init__ import lineinput
 
@@ -549,6 +549,40 @@ def main(template):
     """
     主函数，包含页面标题、初始化会话状态、测试按钮组和解析模板逻辑
     """
+    # 侧边栏设置
+    # 状态管理功能
+    col1, col2 = st.sidebar.columns(2)
+    # 保存当前状态
+    if col1.button("保存输入"):
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        filename = f"session_state_{timestamp}.json"
+        
+        # 保存default_values字典
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(st.session_state.default_values, f, ensure_ascii=False, indent=2)
+        
+        st.sidebar.success(f"状态已保存到 {filename}")
+    
+    # 导入状态
+    uploaded_file = st.sidebar.file_uploader("导入已填数据文件", type=["json"])
+    if uploaded_file is not None:
+        try:
+            # 读取上传的文件内容
+            file_content = uploaded_file.read().decode('utf-8')
+            imported_state = json.loads(file_content)
+            
+            # 更新default_values字典
+            st.session_state.default_values = imported_state
+            st.sidebar.success("状态导入成功")
+            st.rerun()
+        except Exception as e:
+            st.sidebar.error(f"导入失败: {str(e)}")
+    
+    # 一键清空
+    if col2.button("清空输入"):
+        st.session_state.default_values = {}
+        st.rerun()
+    
     # 开始解析模板
     neirong = ast(template)
     if neirong:
@@ -567,48 +601,81 @@ def main(template):
     st.write(st.session_state)
 
 if __name__ == "__main__":
+    # 教学用折叠块
+    with st.expander("📚 自定义模板语法使用指南", expanded=False):
+        st.markdown("""
+            请模仿下面正确语法示例，编写自己的模板
+            #### 1. 变量引用
+            ```
+            {{ 变量名 }}
+            {{ 变量名|default=默认值 }}
+            ```
+
+            #### 2. 条件判断
+            ```
+            {% if 布尔变量 %}
+            条件成立时显示
+            {% else %}
+            条件不成立时显示
+            {% endif %}
+            ```
+
+            #### 3. 表达式条件判断
+            ```
+            {% if 变量名 = "值" %}
+            条件成立内容
+            {% elif 变量名 = "其他值" %}
+            其他条件内容
+            {% else %}
+            默认内容
+            {% endif %}
+            ```
+
+            #### 4. 单选按钮组
+            ```
+            {% radio 组名 %}
+            选项1|选项2|选项3
+            {% endradio %}
+            ```
+
+            #### 5. 下拉选择框
+            ```
+            {% select 列表名 %}
+            选项1|选项2|选项3
+            {% endselect %}
+            ```
+
+            #### 示例模板
+            ```
+            {% radio 信访渠道 %}
+            来信|来访|网上信访|电话信访
+            {% endradio %}
+
+            {% select 信访类型 %}
+            征地补偿|安置方案|土地权属|违法占地
+            {% endselect %}
+
+            {% if 有信访 %}
+            存在信访事项
+            {% else %}
+            未收到信访事项
+            {% endif %}
+
+            {% if 信访渠道 = "来信" %}
+            情况1：来信处理
+            {% elif 信访渠道 = "来访" %}
+            情况2：来访处理
+            {% else %}
+            其他渠道处理方式
+            {% endif %}
+            ```
+        """)
+    
     # 页面标题
     st.title('数据渲染组件')
     # 自定义语法内容
     template = st.text_area("请输入自定义模板语法：", height=300)
-    # 侧边栏增加一键清空按钮
-    # 状态管理功能
-    col1, col2 = st.sidebar.columns(2)
-    
-    # 保存当前状态
-    if col1.button("保存输入"):
-        import json
-        import time
-        timestamp = time.strftime("%Y%m%d_%H%M%S")
-        filename = f"session_state_{timestamp}.json"
-        
-        # 保存default_values字典
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(st.session_state.default_values, f, ensure_ascii=False, indent=2)
-        
-        st.sidebar.success(f"状态已保存到 {filename}")
-    
-    # 导入状态
-    uploaded_file = st.sidebar.file_uploader("导入已填数据文件", type=["json"])
-    if uploaded_file is not None:
-        import json
-        try:
-            # 读取上传的文件内容
-            file_content = uploaded_file.read().decode('utf-8')
-            imported_state = json.loads(file_content)
-            
-            # 更新default_values字典
-            st.session_state.default_values = imported_state
-            st.sidebar.success("状态导入成功")
-            st.rerun()
-        except Exception as e:
-            st.sidebar.error(f"导入失败: {str(e)}")
-    
-    # 一键清空
-    if col2.button("清空输入"):
-        st.session_state.default_values = {}
-        st.rerun()
-    
+
     # 只有template不为空时才解析
     if template.strip():
         main(template)
