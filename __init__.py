@@ -417,21 +417,15 @@ def process_text_content(content):
             # 只有在default_values中没有对应变量或值为空时才存储默认值
             if var_name not in st.session_state.default_values or st.session_state.default_values[var_name] == '':
                 st.session_state.default_values[var_name] = default_value
-        # 确保process_text_content函数有计数器属性
-        if not hasattr(process_text_content, '_counter'):
-            process_text_content._counter = 0
-        # 使用内容哈希和计数器组合生成唯一key
-        import hashlib
-        content_hash = hashlib.md5(content.encode()).hexdigest()[:8]
-        unique_key = f"lineinput_{process_text_content._counter}_{content_hash}"
-        process_text_content._counter += 1
-        
-        # 调用lineinput组件渲染内容
+        # 调用lineinput组件渲染内容，使用后递增的计数器值确保唯一性
+        current_counter = getattr(render_content, '_counter', 0)
         component_result = lineinput(
             content, 
             default_values=st.session_state.default_values.copy(),
-            key=unique_key
+            key=f"lineinput_{current_counter}"
         )
+        # 递增计数器以备下次使用
+        render_content._counter = current_counter + 1
         # 更新会话状态中的变量缓存
         update_variable_cache(component_result)
         return component_result  
@@ -439,14 +433,36 @@ def process_text_content(content):
         st.markdown(content)
         return content
 
+# 处理按钮组
+def radio(element):
+    # 生成按钮组
+    name = element.get('name', '')
+    options = element.get('options', [])
+    # 转换选项格式为button_group需要的格式
+    button_options = [{"label": opt, "value": opt} for opt in options]
+    # 直接用name作为key渲染按钮组 - button_group内部会自动更新default_values
+    value = button_group(f"{name}: ", button_options, 
+                        default_value=st.session_state.default_values.get(name, options[0] if options else None), 
+                        key=f"{name}")
+    return value
+
+# 处理下拉列表
+def select(element):
+    # 生成下拉列表
+    name = element.get('name', '')
+    options = element.get('options', [])
+    # 这是系统组件，会自动维护session_state
+    # 渲染下拉列表，使用name作为key
+    value = st.selectbox(name, options, key=name)
+    # 同步结果到default_values
+    st.session_state.default_values[name] = value
+    return value
 # 处理判断类元素，如if、radio、select等
 def render_element(element):
     """
     渲染单个元素
-    
     Args:
         element: 要渲染的元素字典
-    
     Returns:
         渲染后的结果（如果有）
     """
@@ -460,27 +476,10 @@ def render_element(element):
         return process_text_content(content)
 
     elif element_type == 'radio':
-        # 生成按钮组
-        name = element.get('name', '')
-        options = element.get('options', [])
-        # 转换选项格式为button_group需要的格式
-        button_options = [{"label": opt, "value": opt} for opt in options]
-        # 直接用name作为key渲染按钮组 - button_group内部会自动更新default_values
-        value = button_group(f"{name}: ", button_options, 
-                           default_value=st.session_state.default_values.get(name, options[0] if options else None), 
-                           key=f"{name}")
-        return value
+        return radio(element)
     
     elif element_type == 'select':
-        # 生成下拉列表
-        name = element.get('name', '')
-        options = element.get('options', [])
-        # 这是系统组件，会自动维护session_state
-        # 渲染下拉列表，使用name作为key
-        value = st.selectbox(name, options, key=name)
-        # 同步结果到default_values
-        st.session_state.default_values[name] = value
-        return value
+        return select(element)
     
     # 处理if_bool类型
     elif element_type == 'if_bool':
@@ -566,11 +565,17 @@ def render_content(content_list):
     Args:
         content_list: 内容元素列表
     """
+    # 初始化计数器，用于生成唯一的key
+    if not hasattr(render_content, '_counter'):
+        render_content._counter = 0
+    
     # 初始化session_state中的default_values字典，用于储存用户输入的默认值
     if 'default_values' not in st.session_state:
         st.session_state.default_values = {}
     # 开始逐个元素渲染
     for element in content_list:
+        # 递增计数器
+        render_content._counter += 1
         render_element(element)
 
 # 解析模板为AST模板json的主函数
@@ -586,31 +591,13 @@ def ast(template):
         print(f"解析错误：{e}")
         return None
 
-def parse_and_render(template):
+def setup_sidebar(template):
     """
-    仅解析和渲染模板的函数，不包含侧边栏设置
+    设置侧边栏功能，包括状态管理和模板展示
     
     Args:
         template: 模板字符串
     """
-    # 开始解析模板
-    neirong = ast(template)
-    if neirong:
-        # 解析成功，继续渲染
-        render_content(neirong)
-    else:
-        # 解析失败，提示用户检查模板
-        st.error("模板解析失败，请检查模板语法。")
-
-def main(template):
-    """
-    主函数，包含侧边栏设置和初始化会话状态，然后调用解析渲染函数
-    """
-    # 初始化session_state中的default_values字典
-    if 'default_values' not in st.session_state:
-        st.session_state.default_values = {}
-    
-    # 侧边栏设置
     # 状态管理功能
     col1, col2 = st.sidebar.columns(2)
     # 保存当前状态
@@ -649,19 +636,42 @@ def main(template):
         st.session_state.default_values = {}
         st.rerun()
     
+    # 展示模板和变量
     with st.sidebar.expander("当前处理模板", expanded=True):
         st.write(template)    
     with st.sidebar.expander("当前变量值", expanded=False):
         st.write(st.session_state)
+
+def parse_and_render(template):
+    """
+    解析模板并渲染内容
     
-    # 调用解析和渲染函数
-    parse_and_render(template)
-    
-    # 在侧边栏展示解析后的AST模板json（如果成功解析）
+    Args:
+        template: 模板字符串
+    """
+    # 开始解析模板
     neirong = ast(template)
     if neirong:
+        # 在侧边栏展示解析后的AST模板json
         with st.sidebar.expander("解析后的AST模板", expanded=False):
             st.json(neirong)
+        # 解析成功，继续渲染
+        render_content(neirong)
+    else:
+        # 解析失败，提示用户检查模板
+        st.error("模板解析失败，请检查模板语法。")
+
+def main(template):
+    """
+    主函数，整合侧边栏设置和模板解析渲染
+    
+    Args:
+        template: 模板字符串
+    """
+    # 设置侧边栏
+    setup_sidebar(template)
+    # 解析并渲染模板
+    parse_and_render(template)
 
 if __name__ == "__main__":
     # 教学用折叠块

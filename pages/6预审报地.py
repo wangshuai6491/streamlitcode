@@ -5,10 +5,9 @@ import os
 import sys
 import json,time
 # 添加父目录到Python路径，确保可以导入__init__.py中的函数
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # 直接导入__init__.py中的lineinput函数
 from __init__ import main, parse_and_render
-
 def page1():
     # 头部信息（默认折叠）
     with st.expander("基本信息（点击展开）", expanded=False):
@@ -39,9 +38,8 @@ def page1():
             {% endif %}
             """
         template.append(qukuai1)
-        qukuai2 = r"按权属和地类分：农民集体所有土地{{集体土地总面积|default:0.0000}}公顷，其中：农用地{{集体农用地|default:0.0000}}公顷（耕地{{集体耕地|default:0.0000}}公顷）、建设用地{{集体建设用地|default:0.0000}}公顷、未利用地{{集体未利用地|default:0.0000}}公顷；国有土地{{国有土地总面积|default:0.0000}}公顷，其中：农用地{{国有农用地|default:0.0000}}公顷（耕地{{国有耕地|default:0.0000}}公顷）、建设用地{{国有建设用地|default:0.0000}}公顷、未利用地{{国有未利用地|default:0.0000}}公顷，地类和面积准确。"
-        template.append(qukuai2)
-        # 农用地转用情况
+        
+        # 批次类型模板
         batch_template = """            
             ### 〔农用地转用情况〕
             {% if 批次类型 = "普通批次" %}
@@ -56,7 +54,8 @@ def page1():
             {% endif %}
         """
         template.append(batch_template)
-
+        # qukuai2 = r"按权属和地类分：农民集体所有土地{{集体土地总面积|default:0.0000}}公顷，其中：农用地{{集体农用地|default:0.0000}}公顷（耕地{{集体耕地|default:0.0000}}公顷）、建设用地{{集体建设用地|default:0.0000}}公顷、未利用地{{集体未利用地|default:0.0000}}公顷；国有土地{{国有土地总面积|default:0.0000}}公顷，其中：农用地{{国有农用地|default:0.0000}}公顷（耕地{{国有耕地|default:0.0000}}公顷）、建设用地{{国有建设用地|default:0.0000}}公顷、未利用地{{国有未利用地|default:0.0000}}公顷，地类和面积准确。"
+        # template.append(qukuai2)
         
     return template
 
@@ -371,17 +370,8 @@ if __name__ == "__main__":
     
     # 开始解析并渲染
     if isinstance(template, list):
-        # 如果是列表，只对第一个非空模板调用main函数（包含侧边栏设置）
-        first_rendered = False
-        for i, t in enumerate(template):
+        for t in template:
             if t.strip():
-                if not first_rendered:
-                    # 第一个模板调用main函数，设置侧边栏
-                    main(t)
-                    first_rendered = True
-                else:
-                    # 后续模板只调用parse_and_render函数
-                    parse_and_render(t)
+                main(t)
     elif template.strip():
-        # 如果是单个模板，直接调用main函数
         main(template)
