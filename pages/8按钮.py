@@ -121,3 +121,14 @@ selected_contact = st_radio_buttons(
 )
 
 score = st.select_slider("选择分数", options=[0, 20, 40, 60, 80, 100])
+
+
+# 选项是短字符串，格式化后更易读
+subject = st.select_slider(
+    "选择科目：",
+    options=["语文", "数学", "英语", "物理"],
+    # 显示为 "科目：语文"，但返回值仍是 "语文"
+    format_func=lambda x: f"科目：{x}"
+)
+
+st.write(f"选中科目（原始值）：{subject}")  # 输出："语文"（而非格式化后的文本）
