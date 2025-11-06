@@ -49,3 +49,5 @@ if st.session_state.selected_contact:
     st.success(f"当前选中的联系方式：**{st.session_state.selected_contact}**")
 else:
     st.info("请选择一种联系方式")
+
+score = st.select_slider("选择分数", options=[0, 20, 40, 60, 80, 100])
