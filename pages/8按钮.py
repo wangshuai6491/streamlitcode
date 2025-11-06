@@ -12,7 +12,7 @@ def st_radio_buttons(
     显示一组按钮，支持单选，状态通过 st.session_state 管理。
     
     Args:
-        options (list of tuples): 每个元素为 (icon/text, value)，如 [("📧", "email")]
+        options (list): 可以是字符串列表如 ["来信", "来访"] 或元组列表 [(display_text, value)]
         state_key (str): 用于 st.session_state 的键名，如 "selected_contact"
         label (str, optional): 整体标签，显示在按钮组上方
         key (str, optional): Streamlit 组件的唯一键（用于避免冲突）
@@ -34,11 +34,21 @@ def st_radio_buttons(
     if label:
         st.markdown(f"**{label}**")
 
+    # 处理不同格式的选项
+    processed_options = []
+    for opt in options:
+        if isinstance(opt, tuple):
+            # 如果是元组，直接使用
+            processed_options.append(opt)
+        else:
+            # 如果是字符串，将其同时作为显示文本和值
+            processed_options.append((opt, opt))
+
     # 创建列（按钮数量 = 选项数量）
-    cols = st.columns(len(options))
+    cols = st.columns(len(processed_options))
 
     # 为每个选项创建按钮
-    for i, (display_text, value) in enumerate(options):
+    for i, (display_text, value) in enumerate(processed_options):
         with cols[i]:
             is_selected = st.session_state[state_key] == value
             st.button(
@@ -70,7 +80,14 @@ def update_results():
 # 初始化结果显示
 update_results()
 
-# 调用按钮组件
+# 调用按钮组件（使用新的字符串列表格式）
+selected_type = st_radio_buttons(
+    options=["来信","来访","网上信访","电话信访"],
+    state_key="petition_type",
+    label="选择信访类型",
+    use_container_width=True
+)
+
 selected_payment = st_radio_buttons(
     options=[
         ("💳 信用卡", "credit_card"),

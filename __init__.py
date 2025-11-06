@@ -6,7 +6,7 @@ import streamlit as st
 import os
 import json,time
 import hashlib
-
+TIAOSHI = True # 是否开启调试，True时在页面上展示解析后的结果（调试用）
 _RELEASE = True
 if not _RELEASE:
     _component_func = components.declare_component(
@@ -20,7 +20,11 @@ else:
         "lineinput",
         path=build_dir
     )
+def tsprint(msg):
+    if TIAOSHI:
+        st.write(msg)
 
+# 内联式文本输入框组件，将模板中的{{变量}}替换为输入框。
 def lineinput(name, default_values=None, key=None):
     """
     内联式文本输入框组件，将模板中的{{变量}}替换为输入框。
@@ -43,6 +47,7 @@ def lineinput(name, default_values=None, key=None):
     # 返回组件的返回值
     return component_value
 
+# 模板解析器：仅解析控制标签（{% ... %}），变量语句（{{ ... }}）直接原文输出
 class TemplateParser:
     """模板解析器：仅解析控制标签（{% ... %}），变量语句（{{ ... }}）直接原文输出"""
     
@@ -306,103 +311,132 @@ class TemplateParser:
         if not group_node['options']:
             raise ValueError(f"Empty options in {{% {tag_type} {group_node['name']} %}}")
 
-# 自定义按钮组样式
-def button_group(label: str = "", options: Optional[List[Dict[str, str]]] = None, default_value: Optional[str] = None, key: Optional[str] = None) -> str:
+# 解析模板为AST模板json的主函数，并作为不变因素
+@st.cache_data(show_spinner=False)
+def ast(template):
     """
-    创建一个选择按钮组
+    解析模板为AST模板json,方便程序解析
+    """
+    with st.sidebar.expander("当前处理模板", expanded=False):
+        st.write(template)    
+    # 开始解析模板
+    if isinstance(template, list):
+        template = ''.join(template)
+    
+    # 调用TemplateParser类解析模板
+    parser = TemplateParser()
+    try:
+        ast = parser.parse(template)
+    except Exception as e:
+        st.error(f"模板解析失败，请检查模板语法。解析错误：{e}")
+        return None
+    
+    # 解析成功，返回AST模板json
+    if ast:
+        # 在侧边栏展示解析后的AST模板json
+        with st.sidebar.expander("解析后的AST模板", expanded=False):
+            st.json(ast)
+    return ast
+
+# 在侧边栏上下文内调用片段（核心：确保片段渲染到侧边栏）
+def setup_sidebar():
+    with st.sidebar:
+        # 侧边栏组件：直接定义组件（不嵌套 st.sidebar）
+        st.toggle("♻️ 使用原生组件（极速）", value=False, key="use_native")
+        
+        # 状态管理功能（直接在片段内定义，后续会被包裹到侧边栏）
+        # 保存当前状态
+        if st.button("保存输入"):
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            filename = f"session_state_{timestamp}.json"
+            
+            # 将 session_state 转为 JSON 字符串
+            json_str = json.dumps(st.session_state, ensure_ascii=False, indent=2)
+            
+            # 提供下载（使用 key 确保唯一性，避免重复渲染问题）
+            st.download_button(
+                label="点击下载状态文件",
+                data=json_str,
+                file_name=filename,
+                mime="application/json",
+                key=f"download_{timestamp}"  # 动态 key 避免按钮复用冲突
+            )
+        
+        # 导入状态
+        uploaded_file = st.file_uploader("导入已填数据文件", type=["json"])
+        if uploaded_file is not None:
+            try:
+                file_content = uploaded_file.read().decode('utf-8')
+                imported_state = json.loads(file_content)
+                st.session_state.update(imported_state)
+                st.success("状态导入成功")
+                st.rerun()  # 触发全局重渲染，让其他组件感知状态变化
+            except Exception as e:
+                st.error(f"导入失败: {str(e)}")
+# 自定义按钮组样式
+
+# 自定义按钮组
+def st_radio_buttons(
+    options,
+    state_key,
+    label=None,
+    key=None,
+    use_container_width=True
+):
+    """
+    显示一组按钮，支持单选，状态通过 st.session_state 管理。
+    
     Args:
-        label: 组件标签
-        options: 选项列表，每个选项包含 label 和 value
-        default_value: 默认选中的值
-        key: 组件的唯一键
+        options (list): 可以是字符串列表如 ["来信", "来访"] 或元组列表 [(display_text, value)]
+        state_key (str): 用于 st.session_state 的键名，如 "selected_contact"
+        label (str, optional): 整体标签，显示在按钮组上方
+        key (str, optional): Streamlit 组件的唯一键（用于避免冲突）
+        use_container_width (bool): 是否占满容器宽度
     
     Returns:
-        当前选中的值
+        str or None: 当前选中的值，未选中则为 None
     """
-    if options is None:
-        options = [
-            {"label": "是", "value": "是"},
-            {"label": "否", "value": "否"}
-        ]
-    
-    if default_value is None:
-        default_value = options[0]["value"]
-    
-    # 初始化 session state
-    if key is None:
-        key = f"button_group_{label}"
-    # 如果session_state中没有该key，初始化默认值
-    if key not in st.session_state:
-        st.session_state[key] = default_value
-    
-    # 显示标签
-    if label:
-        st.write(label)
-    
-    # 创建按钮组布局
-    cols = st.columns(len(options))
-    
-    # ---- 回调：立即改状态，无需 rerun 两次 ----
-    def _switch(sel):
-        st.session_state[key] = sel
+    # 初始化状态
+    if state_key not in st.session_state:
+        st.session_state[state_key] = None
 
-    current_value = st.session_state[key]
-    
-    for i, option in enumerate(options):
+    # 回调函数：更新选中状态
+    def set_selected(value):
+        st.session_state[state_key] = value
+        # 在回调函数中，Streamlit会自动处理片段的重渲染
+
+    # 显示标签（如果有）
+    if label:
+        st.markdown(f"**{label}**")
+
+    # 处理不同格式的选项
+    processed_options = []
+    for opt in options:
+        if isinstance(opt, tuple):
+            # 如果是元组，直接使用
+            processed_options.append(opt)
+        else:
+            # 如果是字符串，将其同时作为显示文本和值
+            processed_options.append((opt, opt))
+
+    # 创建列（按钮数量 = 选项数量）
+    cols = st.columns(len(processed_options))
+
+    # 为每个选项创建按钮
+    for i, (display_text, value) in enumerate(processed_options):
         with cols[i]:
-            is_selected = current_value == option["value"]
-            
-            # 按钮样式
-            button_style = """
-            <style>
-            .btn-group-button {
-                width: 100%;
-                padding: 0.5rem 1rem;
-                border: 1px solid #d1d5db;
-                background-color: white;
-                color: #374151;
-                font-size: 0.875rem;
-                font-weight: 500;
-                cursor: pointer;
-                transition: all 0.3s ease;
-            }
-            .btn-group-button:hover {
-                background-color: #f3f4f6;
-            }
-            .btn-group-button.selected {
-                background-color: #3b82f6;
-                color: white;
-                border-color: #3b82f6;
-            }
-            .btn-group-button:first-child {
-                border-top-left-radius: 0.5rem;
-                border-bottom-left-radius: 0.5rem;
-            }
-            .btn-group-button:last-child {
-                border-top-right-radius: 0.5rem;
-                border-bottom-right-radius: 0.5rem;
-            }
-            .btn-group-button:not(:first-child):not(:last-child) {
-                border-radius: 0;
-            }
-            </style>
-            """
-            
-            # 按钮类名
-            button_class = "btn-group-button"
-            if is_selected:
-                button_class += " selected"
-            
-            # 创建按钮
-            if st.button(
-                str(option["label"]),  # 确保 label 是字符串类型
-                key=f"{key}_{i}",
-                use_container_width=True,
-                type="primary" if is_selected else "secondary"
-            ):
-                st.session_state[key] = option["value"]
-                st.rerun()
-    return st.session_state[key]
+            is_selected = st.session_state[state_key] == value
+            st.button(
+                display_text,
+                on_click=set_selected,
+                args=(value,),
+                type="primary" if is_selected else "secondary",
+                use_container_width=use_container_width,
+                key=f"{key}_{i}" if key else None
+            )
+
+    # 返回当前选中值
+    return st.session_state[state_key]
 
 # 更新会话状态中的变量缓存
 def update_variable_cache(component_result):
@@ -451,58 +485,18 @@ def process_text_content(content):
             # 只有在default_values中没有对应变量或值为空时才存储默认值
             if var_name not in st.session_state or st.session_state[var_name] == '':
                 st.session_state[var_name] = default_value
-        # 调用lineinput组件渲染内容，使用session_state中的计数器确保唯一性
+        # 调用lineinput组件渲染内容，将session_state转换为普通字典以支持JSON序列化
         component_result = lineinput(
             content, 
-            default_values=st.session_state.copy()
+            default_values=dict(st.session_state)
         )
         # 更新会话状态中的变量缓存
         update_variable_cache(component_result)
-        return component_result  
+        return
     else:
         st.markdown(content)
-        return content
+        return
 
-def radio(name, options):
-    # 1. 确保 session_state 有默认值
-    if name not in st.session_state:
-        # 取第一个元素的 value 作为默认
-        st.session_state[name] = options[0]["value"] if options else None
-
-    default = st.session_state[name]
-
-    # 2. 原生分支
-    if st.session_state.get("use_native", True):
-        # 把 options 转成字符串列表
-        labels = [o["label"] for o in options]
-        val_label = st.radio(name, labels, key=f"{name}", horizontal=True)
-        # 同步结果到session_state
-        st.session_state[name] = val_label
-        return val_label
-
-    # 3. 自定义按钮组分支 —— 直接传原格式
-    return button_group(
-        label=name,
-        options=options,
-        default_value=default,
-        key=name
-    )
-
-# 处理下拉列表
-def select(name,options):
-    value = st.selectbox(name, options, key=name)
-    # 同步结果到session_state
-    st.session_state[name] = value
-    return value
-
-
-# 处理开关组件toggle
-def toggle(name, value=True):
-    value = st.toggle(name, value=value)
-    # 同步结果到session_state
-    st.session_state[name] = value
-    return value
-    
 # 处理判断类元素，如if、radio、select等
 def render_element(element):
     """
@@ -514,29 +508,42 @@ def render_element(element):
     """
     # 获取元素类型
     element_type = element.get('type')
-    
     if element_type == 'text':
         # 获取文本内容和名称
         content = element.get('content', '')
         # 调用封装的文本处理函数
         return process_text_content(content)
+    # 处理开关组件toggle
+    elif element_type == 'toggle':
+        name = element.get('name', '')
+        st.toggle(name, key=name)
+        tsprint(f"{name}_当前值: {st.session_state[name]}")
+        return
 
+    elif element_type == 'select':
+        name = element.get('name', '')
+        options = element.get('options', [])
+        value = st.selectbox(name, options, key=name)
+        tsprint(f"{name}_当前值: {value}")
+        return
+        
     elif element_type == 'radio':
         name   = element.get("name", "")
         # 将字符串列表转成 dict 列表，确保 radio 函数拿到正确格式
         raw_options = element.get("options", [])
-        options = [{"label": opt, "value": opt} for opt in raw_options]
-        return radio(name, options)
-    
-    elif element_type == 'select':
-        name = element.get('name', '')
-        options = element.get('options', [])
-        return select(name,options)
-    
-    # 处理开关组件toggle
-    elif element_type == 'toggle':
-        name = element.get('name', '')
-        return toggle(name, value=True)
+        if st.session_state.get("use_native", True):
+            value = st.radio(name, raw_options, key=name, horizontal=True)
+            tsprint(f"{name}_当前值: {value}")
+            return
+        else:
+            value = st_radio_buttons(
+                options=raw_options,
+                state_key=name,
+                label=name,
+                use_container_width=True
+            )
+            tsprint(f"{name}_当前值: {value}")
+        return
     
     # 处理if_bool类型
     elif element_type == 'if_bool':
@@ -624,94 +631,31 @@ def render_content(content_list):
     for element in content_list:
         render_element(element)
 
-# 解析模板为AST模板json的主函数，并作为不变因素
-@st.cache_data(show_spinner=False)
-def ast(template):
-    """
-    解析模板为AST模板json,方便程序解析
-    """
-    parser = TemplateParser()
-    try:
-        ast = parser.parse(template)
-        return ast
-    except Exception as e:
-        print(f"解析错误：{e}")
-        return None
-
-# 设置侧边栏功能
-def setup_sidebar():
-    """
-    设置侧边栏功能，包括状态管理和模板展示
-    
-    Args:
-        template: 模板字符串
-    """
-    # 侧边栏顶部放个 toggle
-    use_native = st.sidebar.toggle("♻️ 使用原生组件（极速）", value=True)
-    st.session_state["use_native"] = use_native
-    # 状态管理功能
-    col1, col2 = st.sidebar.columns(2)
-    # 保存当前状态
-    if col1.button("保存输入"):
-        timestamp = time.strftime("%Y%m%d_%H%M%S")
-        filename = f"session_state_{timestamp}.json"
-        
-        # 将 default_values 转为 JSON 字符串
-        json_str = json.dumps(st.session_state, ensure_ascii=False, indent=2)
-        
-        # 提供下载
-        st.sidebar.download_button(
-            label="点击下载状态文件",
-            data=json_str,
-            file_name=filename,
-            mime="application/json"
-        )
-    
-    # 导入状态
-    uploaded_file = st.sidebar.file_uploader("导入已填数据文件", type=["json"])
-    if uploaded_file is not None:
-        try:
-            # 读取上传的文件内容
-            file_content = uploaded_file.read().decode('utf-8')
-            imported_state = json.loads(file_content)
-            
-            # 更新default_values字典
-            st.session_state = imported_state
-            st.sidebar.success("状态导入成功")
-            st.rerun()
-        except Exception as e:
-            st.sidebar.error(f"导入失败: {str(e)}")
-    
-    # 一键清空
-    if col2.button("清空输入"):
-        st.session_state = {}
-        st.rerun()
-
-def parse_and_render(template):
-    """
-    解析模板并渲染内容
-    
-    Args:
-        template: 模板字符串或列表
-    """
-    # 展示模板和变量
-    with st.sidebar.expander("当前处理模板", expanded=False):
-        st.write(template)    
-    # 开始解析模板
-    if isinstance(template, list):
-        template = ''.join(template)
-    neirong = ast(template)
+# 渲染模板的主函数,使用st.fragment装饰器,确保每次渲染都是独立的,不会影响其他组件
+@st.fragment
+def render(neirong):
     if neirong:
-        # 在侧边栏展示解析后的AST模板json
-        with st.sidebar.expander("解析后的AST模板", expanded=False):
-            st.json(neirong)
-        # 解析成功，继续渲染
-        placeholder = st.empty()
-        with placeholder.container():
+        # 创建容器,用于存放单次渲染内容，减少刷新次数
+        main_container = st.container()
+        # 向容器中添加元素
+        with main_container:
             render_content(neirong)
     else:
         # 解析失败，提示用户检查模板
         st.error("模板解析失败，请检查模板语法。")
+
+# 解析模板并渲染内容的函数入口
+def parse_and_render(template):
+    """
+    解析模板并渲染内容的函数入口
+    
+    Args:
+        template: 模板字符串
+    """
+    # 解析模板为AST模板json
+    neirong = ast(template)
+    # st.write(neirong)
+    render(neirong)
 
 def main(template):
     """
@@ -805,5 +749,3 @@ if __name__ == "__main__":
     if template.strip():
         main(template)
     
-
-
