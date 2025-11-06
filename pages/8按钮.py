@@ -1,43 +1,24 @@
-# test_radio_blue.py
 import streamlit as st
-from streamlit_extras.st_horizontal_radio import st_horizontal_radio
 
-# 蓝色选中样式
-st.markdown("""
-<style>
-/* 整个 radio 组横向排布 */
-div.stHorizontalRadio > div {
-    flex-direction: row;
-    gap: 0.5rem;
-}
+# 初始化 session_state（如果不存在）
+if "is_active" not in st.session_state:
+    st.session_state.is_active = False
 
-/* 未选中 label */
-div.stHorizontalRadio label {
-    background-color: #f7f7f7 !important;
-    color: #333 !important;
-    border: 1px solid #d1d5db !important;
-    border-radius: 6px !important;
-    padding: 0.4rem 0.8rem !important;
-    cursor: pointer !important;
-    transition: all .2s ease;
-}
+# 定义按钮点击后的回调函数
+def toggle_state():
+    st.session_state.is_active = not st.session_state.is_active
 
-/* 选中 label（蓝色高亮） */
-div.stHorizontalRadio input:checked + label {
-    background-color: #0066ff !important;
-    color: #ffffff !important;
-    border-color: #0066ff !important;
-    font-weight: bold !important;
-}
-</style>
-""", unsafe_allow_html=True)
+# 根据状态决定按钮样式和文字
+button_text = "✅ 已启用" if st.session_state.is_active else "🔴 已禁用"
+button_type = "primary" if st.session_state.is_active else "secondary"
 
-# 组件
-choice = st_horizontal_radio(
-    label="请选择一个水果：",
-    options=["🍎 苹果", "🍌 香蕉", "🍇 葡萄"],
-    default="🍌 香蕉",
-    key="fruit"
+# 显示按钮
+st.button(
+    button_text,
+    on_click=toggle_state,
+    type=button_type,
+    use_container_width=True
 )
 
-st.write("当前选中：", choice)
+# 显示当前状态
+st.write(f"当前状态: {'启用' if st.session_state.is_active else '禁用'}")
