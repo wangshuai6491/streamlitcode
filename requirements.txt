@@ -11,3 +11,6 @@ python-docx
 beautifulsoup4
 markdown
 streamlit-extras
+geopandas
+shapely
+openpyxl
