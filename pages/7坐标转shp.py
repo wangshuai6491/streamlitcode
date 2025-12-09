@@ -89,8 +89,10 @@ def main():
         return data_clean, "✅ 数据校验完成，可导出"
 
     # 校验结果展示
-    clean_data, msg = (validate_and_preprocess(st.session_state.data), ("", "")) if st.session_state.data.empty else validate_and_preprocess(st.session_state.data)
-    if not st.session_state.data.empty:
+    if st.session_state.data.empty:
+        clean_data, msg = None, ""
+    else:
+        clean_data, msg = validate_and_preprocess(st.session_state.data)
         st.info(msg)
 
     # ---------------------- 5. 多格式导出（适配坐标类型） ----------------------
