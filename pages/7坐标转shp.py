@@ -202,8 +202,6 @@ def main():
         st.info(msg)
 
     # ---------------------- 5. SHP导出功能 ----------------------
-    st.subheader("📥 SHP文件导出")
-    
     # 选择导出几何类型（点、线、面）
     feature_types = st.multiselect(
         "🔶 选择导出几何类型",
@@ -287,11 +285,11 @@ def main():
 
     # 导出按钮逻辑
     if clean_data is not None and not clean_data.empty:
-        if st.button("📤 导出SHP文件", type="primary"):
+        if st.button("📤 生成SHP文件", type="primary"):
             try:
                 shp_zip_data = export_shp(clean_data, feature_types)
                 st.download_button(
-                    label="✅ 下载SHP文件",
+                    label="✅ 数据生成完毕，点击下载SHP文件",
                     data=shp_zip_data,
                     file_name="data_shp.zip",
                     mime="application/zip",
@@ -300,7 +298,7 @@ def main():
             except Exception as e:
                 st.error(f"导出失败：{str(e)}，请检查数据格式后重试")
     else:
-        st.button("📤 导出SHP文件", disabled=True, help="请先添加有效坐标数据")
+        st.button("📤 生成SHP文件", disabled=True, help="请先添加有效坐标数据")
 
 
 # 程序入口
