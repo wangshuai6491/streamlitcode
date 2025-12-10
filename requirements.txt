@@ -14,3 +14,4 @@ streamlit-extras
 geopandas
 shapely
 openpyxl
+simplekml
