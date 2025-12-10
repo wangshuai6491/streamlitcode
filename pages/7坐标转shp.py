@@ -1,92 +1,198 @@
 import streamlit as st
 import pandas as pd
 import geopandas as gpd
-from shapely.geometry import Point
+from shapely.geometry import Point, LineString, Polygon
 import tempfile
 import os
 import zipfile
 
 def main():
     # 页面配置
-    st.set_page_config(page_title="地理数据编辑导出工具", layout="wide")
-    st.title("📊 地理数据交互编辑与多格式导出")
-
+    st.set_page_config(page_title="坐标转shp", layout="wide")
+    st.title("📊 坐标转shp")
+    
     # ---------------------- 1. 坐标类型选择+表头配置 ----------------------
-    # 新增坐标类型选择（兼容经纬度/平面坐标）
-    coord_type = st.radio(
-        "🔍 选择坐标类型",
-        options=["经纬度（WGS84/大地2000）", "平面直角坐标（如大地2000 37度带）"],
-        index=0,
-        help="平面坐标直接输入数字（如X=40500000，Y=5300000），无需符号约束"
-    )
-    # 固定表头（复用经度/纬度列为X/Y坐标）
-    fixed_headers = ["序号", "名称", "经度/X坐标", "纬度/Y坐标", "属性值1", "属性值2", "备注"]
-    # 动态配置字段校验规则（按坐标类型适配）
+    # 使用两列布局放置坐标类型选择和坐标系选择控件
+    col1, col2 = st.columns(2)
+    
+    # 左侧列：坐标类型选择（兼容经纬度平面坐标）
+    with col1:
+        coord_type = st.radio(
+            "🔍 选择坐标类型",
+            options=["经纬度", "平面直角坐标"],
+            index=1,
+            horizontal=True,
+            help="经纬度：如WGS84、CGCS2000等全球坐标系；平面坐标：如高斯克里格投影坐标"
+        )
+    
+    # 坐标系映射字典
+    crs_mapping = {
+        # 经纬度坐标系
+        "China Geodetic Coordinate System 2000": "EPSG:4490",
+        "World Geodetic System 1984": "EPSG:4326",
+        "Beijing 1954": "EPSG:4214",
+        "Xian 1980": "EPSG:4610",
+        # 平面坐标（3度带，CM格式，我国常用范围：75E-135E，间隔3度）
+        "CGCS2000 3 Degree GK CM 75E": "EPSG:4534",  # 75度经线
+        "CGCS2000 3 Degree GK CM 78E": "EPSG:4535",  # 78度经线
+        "CGCS2000 3 Degree GK CM 81E": "EPSG:4536",  # 81度经线
+        "CGCS2000 3 Degree GK CM 84E": "EPSG:4537",  # 84度经线
+        "CGCS2000 3 Degree GK CM 87E": "EPSG:4538",  # 87度经线
+        "CGCS2000 3 Degree GK CM 90E": "EPSG:4539",  # 90度经线
+        "CGCS2000 3 Degree GK CM 93E": "EPSG:4540",  # 93度经线
+        "CGCS2000 3 Degree GK CM 96E": "EPSG:4541",  # 96度经线
+        "CGCS2000 3 Degree GK CM 99E": "EPSG:4542",  # 99度经线
+        "CGCS2000 3 Degree GK CM 102E": "EPSG:4543",  # 102度经线
+        "CGCS2000 3 Degree GK CM 105E": "EPSG:4544",  # 105度经线
+        "CGCS2000 3 Degree GK CM 108E": "EPSG:4545",  # 108度经线
+        "CGCS2000 3 Degree GK CM 111E": "EPSG:4546",  # 111度经线
+        "CGCS2000 3 Degree GK CM 114E": "EPSG:4547",  # 114度经线
+        "CGCS2000 3 Degree GK CM 117E": "EPSG:4548",  # 117度经线
+        "CGCS2000 3 Degree GK CM 120E": "EPSG:4549",  # 120度经线
+        "CGCS2000 3 Degree GK CM 123E": "EPSG:4550",  # 123度经线
+        "CGCS2000 3 Degree GK CM 126E": "EPSG:4551",  # 126度经线
+        "CGCS2000 3 Degree GK CM 129E": "EPSG:4552",  # 129度经线
+        "CGCS2000 3 Degree GK CM 132E": "EPSG:4553",  # 132度经线
+        "CGCS2000 3 Degree GK CM 135E": "EPSG:4554",  # 135度经线
+        # 平面坐标（3度带，Zone格式，我国常用范围：25-45带）
+        "CGCS2000 3 Degree GK Zone 25": "EPSG:4513",  # 25度带
+        "CGCS2000 3 Degree GK Zone 26": "EPSG:4514",  # 26度带
+        "CGCS2000 3 Degree GK Zone 27": "EPSG:4515",  # 27度带
+        "CGCS2000 3 Degree GK Zone 28": "EPSG:4516",  # 28度带
+        "CGCS2000 3 Degree GK Zone 29": "EPSG:4517",  # 29度带
+        "CGCS2000 3 Degree GK Zone 30": "EPSG:4518",  # 30度带
+        "CGCS2000 3 Degree GK Zone 31": "EPSG:4519",  # 31度带
+        "CGCS2000 3 Degree GK Zone 32": "EPSG:4520",  # 32度带
+        "CGCS2000 3 Degree GK Zone 33": "EPSG:4521",  # 33度带
+        "CGCS2000 3 Degree GK Zone 34": "EPSG:4522",  # 34度带
+        "CGCS2000 3 Degree GK Zone 35": "EPSG:4523",  # 35度带
+        "CGCS2000 3 Degree GK Zone 36": "EPSG:4524",  # 36度带
+        "CGCS2000 3 Degree GK Zone 37": "EPSG:4525",  # 37度带
+        "CGCS2000 3 Degree GK Zone 38": "EPSG:4526",  # 38度带
+        "CGCS2000 3 Degree GK Zone 39": "EPSG:4527",  # 39度带
+        "CGCS2000 3 Degree GK Zone 40": "EPSG:4528",  # 40度带
+        "CGCS2000 3 Degree GK Zone 41": "EPSG:4529",  # 41度带
+        "CGCS2000 3 Degree GK Zone 42": "EPSG:4530",  # 42度带
+        "CGCS2000 3 Degree GK Zone 43": "EPSG:4531",  # 43度带
+        "CGCS2000 3 Degree GK Zone 44": "EPSG:4532",  # 44度带
+        "CGCS2000 3 Degree GK Zone 45": "EPSG:4533"   # 45度带
+    }
+    
+    # 右侧列：根据坐标类型选择坐标系
+    with col2:
+        if coord_type == "经纬度":
+            # 经纬度坐标系选项
+            lonlat_options = [crs for crs in crs_mapping.keys() if "Geodetic" in crs or "System" in crs or "1954" in crs or "1980" in crs]
+            selected_crs_name = st.selectbox(
+                "📍 选择经纬度坐标系",
+                options=lonlat_options,
+                index=lonlat_options.index("China Geodetic Coordinate System 2000"),
+                help="选择对应的地理坐标系",
+                key="lonlat_crs_select"
+            )
+        else:
+            # 平面坐标选项
+            plane_options = [crs for crs in crs_mapping.keys() if "GK" in crs]
+            selected_crs_name = st.selectbox(
+                "📍 选择平面坐标系",
+                options=plane_options,
+                index=plane_options.index("CGCS2000 3 Degree GK Zone 37"),
+                help="选择对应的投影坐标系",
+                key="plane_crs_select"
+            )
+    
+    # 获取选中的EPSG代码
+    selected_crs = crs_mapping[selected_crs_name]
+    
+    # 保存用户选择到session_state，确保按钮点击时能保持选择
+    if "selected_crs" not in st.session_state:
+        st.session_state.selected_crs = selected_crs
+        st.session_state.selected_crs_name = selected_crs_name
+    
+    # 当用户改变选择时更新session_state
+    if selected_crs != st.session_state.selected_crs:
+        st.session_state.selected_crs = selected_crs
+        st.session_state.selected_crs_name = selected_crs_name
+    
+    # 显示当前选择的坐标系信息
+    st.info(f"当前选择的坐标系：{selected_crs_name} ({selected_crs})")
+    # 简化表头，使用短英文名称避免SHP字段名截断
+    fixed_headers = ["X", "Y"]
+    # 配置字段校验规则（仅XY坐标）
     column_config = {
-        "序号": st.column_config.NumberColumn("序号", required=True, step=1, min_value=1),
-        "名称": st.column_config.TextColumn("名称", max_chars=50),
-        "经度/X坐标": st.column_config.NumberColumn(
+        "X": st.column_config.NumberColumn(
             "经度/X坐标", 
             required=True, 
             format="%.6f" if coord_type.startswith("经纬") else "%.2f",
             help="经纬度输入-180~180/0~90，平面坐标直接输数字"
         ),
-        "纬度/Y坐标": st.column_config.NumberColumn(
+        "Y": st.column_config.NumberColumn(
             "纬度/Y坐标", 
             required=True, 
             format="%.6f" if coord_type.startswith("经纬") else "%.2f"
-        ),
-        "属性值1": st.column_config.NumberColumn("属性值1", format="%.2f"),
-        "属性值2": st.column_config.TextColumn("属性值2", max_chars=100),
-        "备注": st.column_config.TextColumn("备注", max_chars=200)
+        )
     }
 
     # ---------------------- 2. 初始化数据 ----------------------
     if "data" not in st.session_state:
-        st.session_state.data = pd.DataFrame(columns=fixed_headers)
+        # 添加默认数据行
+        st.session_state.data = pd.DataFrame([{"X": 12345678.1234, "Y": 123456.1234}], columns=fixed_headers)
 
     # ---------------------- 3. 数据交互编辑 ----------------------
-    st.subheader("🖋️ 数据编辑区")
-    edited_data = st.data_editor(
-        st.session_state.data,
-        column_config=column_config,
-        num_rows="dynamic",
-        use_container_width=True,
-        key="data_editor"
-    )
-    st.session_state.data = edited_data
+    with st.form("data_input_form"):
+        st.subheader("🖋️ 坐标数据输入")
+        
+        edited_df = st.data_editor(
+            st.session_state.data,
+            column_config=column_config,
+            num_rows="dynamic",
+            use_container_width=True,
+            key="data_editor"
+        )
+        
+        # 在表单内添加提交按钮
+        col1, col2 = st.columns(2)
+        with col1:
+            submitted = st.form_submit_button("💾 应用更改")
+        with col2:
+            reset = st.form_submit_button("🔄 重置")
+        
+        if submitted:
+            st.session_state.data = edited_df
+            st.success("数据已更新！")
+            st.rerun()
+        
+        if reset:
+            st.session_state.data = pd.DataFrame([{"X": 12345678.1234, "Y": 123456.1234}], columns=fixed_headers)
+            st.rerun()
 
     # ---------------------- 4. 数据校验与预处理 ----------------------
     def validate_and_preprocess(data):
         if data.empty:
-            return None, "⚠️ 暂无数据，请先添加内容"
-        
-        # 去重+补全序号
-        data_clean = data.drop_duplicates(subset=["序号", "经度/X坐标", "纬度/Y坐标"], keep="last")
-        if data_clean["序号"].isnull().any():
-            max_seq = data_clean["序号"].max() if not data_clean["序号"].isna().all() else 0
-            missing_seq = data_clean["序号"].isnull()
-            data_clean.loc[missing_seq, "序号"] = range(int(max_seq)+1, int(max_seq)+1+missing_seq.sum())
+            return None, "⚠️ 暂无数据，请先添加坐标"
         
         # 坐标类型适配校验
         if coord_type.startswith("经纬"):
             # 经纬度范围约束
-            data_clean["经度/X坐标"] = pd.to_numeric(data_clean["经度/X坐标"], errors="coerce").round(6)
-            data_clean["纬度/Y坐标"] = pd.to_numeric(data_clean["纬度/Y坐标"], errors="coerce").round(6)
-            invalid_mask = (data_clean["经度/X坐标"].isnull() | data_clean["纬度/Y坐标"].isnull() |
-                           (data_clean["经度/X坐标"] < -180) | (data_clean["经度/X坐标"] > 180) |
-                           (data_clean["纬度/Y坐标"] < -90) | (data_clean["纬度/Y坐标"] > 90))
+            data_clean = data.copy()
+            data_clean["X"] = pd.to_numeric(data_clean["X"], errors="coerce").round(6)
+            data_clean["Y"] = pd.to_numeric(data_clean["Y"], errors="coerce").round(6)
+            invalid_mask = (data_clean["X"].isnull() | data_clean["Y"].isnull() |
+                           (data_clean["X"] < -180) | (data_clean["X"] > 180) |
+                           (data_clean["Y"] < -90) | (data_clean["Y"] > 90))
         else:
             # 平面坐标仅非空校验
-            data_clean["经度/X坐标"] = pd.to_numeric(data_clean["经度/X坐标"], errors="coerce").round(2)
-            data_clean["纬度/Y坐标"] = pd.to_numeric(data_clean["纬度/Y坐标"], errors="coerce").round(2)
-            invalid_mask = data_clean["经度/X坐标"].isnull() | data_clean["纬度/Y坐标"].isnull()
+            data_clean = data.copy()
+            data_clean["X"] = pd.to_numeric(data_clean["X"], errors="coerce").round(2)
+            data_clean["Y"] = pd.to_numeric(data_clean["Y"], errors="coerce").round(2)
+            invalid_mask = data_clean["X"].isnull() | data_clean["Y"].isnull()
         
         # 过滤无效数据
         if invalid_mask.any():
             st.warning(f"❌ 过滤{invalid_mask.sum()}行无效数据（坐标异常或为空）")
             data_clean = data_clean[~invalid_mask].reset_index(drop=True)
-        return data_clean, "✅ 数据校验完成，可导出"
+        
+        return data_clean, "✅ 数据校验完成，可导出SHP"
 
     # 校验结果展示
     if st.session_state.data.empty:
@@ -95,140 +201,107 @@ def main():
         clean_data, msg = validate_and_preprocess(st.session_state.data)
         st.info(msg)
 
-    # ---------------------- 5. 多格式导出（适配坐标类型） ----------------------
-    st.subheader("📥 数据导出")
-    export_formats = st.multiselect("选择导出格式", ["CSV", "Excel", "GeoJSON", "SHP"], default=["CSV"])
-
-    def export_data(data):
-        exports = {}
-        # 坐标系映射（按选择的坐标类型绑定）
-        crs = "EPSG:4326" if coord_type.startswith("经纬") else "EPSG:4547"  # 大地2000 37度带
+    # ---------------------- 5. SHP导出功能 ----------------------
+    st.subheader("📥 SHP文件导出")
+    
+    # 选择导出几何类型（点、线、面）
+    feature_types = st.multiselect(
+        "🔶 选择导出几何类型",
+        options=["点", "线", "面"],
+        default=["面"],
+        help="点：每个坐标作为一个点；线：将所有坐标按顺序连接成一条线；面：将所有坐标按顺序连接成一个闭合多边形"
+    )
+    
+    def export_shp(data, feature_types):
+        # 使用session_state中保存的用户选择的坐标系
+        crs = st.session_state.selected_crs
+        selected_crs_name = st.session_state.selected_crs_name
         
-        # CSV导出
-        if "CSV" in export_formats:
-            csv_data = data.to_csv(index=False, encoding="utf-8-sig")
-            exports["CSV"] = ("data.csv", csv_data, "text/csv")
+        # 显示导出信息
+        st.info(f"正在导出SHP文件，使用坐标系: {selected_crs_name} ({crs})")
         
-        # Excel导出（含坐标类型说明）
-        if "Excel" in export_formats:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
-                with pd.ExcelWriter(tmp.name, engine="openpyxl") as writer:
-                    data.to_excel(writer, sheet_name="数据", index=False)
-                    # 补充坐标说明
-                    desc_df = pd.DataFrame({
-                        "字段名": fixed_headers,
-                        "说明": [
-                            "唯一标识序号", "数据名称", 
-                            f"{'经度' if coord_type.startswith('经纬') else 'X坐标'}（{crs}）",
-                            f"{'纬度' if coord_type.startswith('经纬') else 'Y坐标'}（{crs}）",
-                            "数值属性1", "文本/数值属性2", "补充说明"
-                        ]
-                    })
-                    desc_df.to_excel(writer, sheet_name="字段说明", index=False)
-            with open(tmp.name, "rb") as f:
-                excel_data = f.read()
-            exports["Excel"] = ("data.xlsx", excel_data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-            os.unlink(tmp.name)
-        
-        # GeoJSON/SHP导出（地理格式）
-        if clean_data is not None and not clean_data.empty:
-            gdf = gpd.GeoDataFrame(
-                data,
-                geometry=[Point(xy) for xy in zip(data["经度/X坐标"], data["纬度/Y坐标"])],
-                crs=crs
-            )
-            # GeoJSON
-            if "GeoJSON" in export_formats:
-                geojson_data = gdf.to_json(index=False)
-                exports["GeoJSON"] = ("data.geojson", geojson_data, "application/geo+json")
-            # SHP（打包为ZIP）
-            if "SHP" in export_formats:
-                with tempfile.TemporaryDirectory() as tmp_dir:
-                    shp_path = os.path.join(tmp_dir, "data.shp")
-                    gdf.to_file(shp_path, driver="ESRI Shapefile", encoding="utf-8")
-                    zip_path = os.path.join(tmp_dir, "data_shp.zip")
-                    with zipfile.ZipFile(zip_path, "w") as zipf:
-                        for ext in [".shp", ".shx", ".dbf", ".prj", ".cpg"]:
-                            file = f"data{ext}"
+        # 生成SHP文件并打包为ZIP
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            zip_path = os.path.join(tmp_dir, "data_shp.zip")
+            
+            # 准备坐标数据
+            coords = list(zip(data["X"], data["Y"]))
+            
+            with zipfile.ZipFile(zip_path, "w") as zipf:
+                # 导出点类型
+                if "点" in feature_types:
+                    # 创建点GeoDataFrame
+                    gdf_points = gpd.GeoDataFrame(
+                        data,
+                        geometry=[Point(xy) for xy in coords],
+                        crs=crs
+                    )
+                    # 保存点SHP文件
+                    shp_path_points = os.path.join(tmp_dir, "points.shp")
+                    gdf_points.to_file(shp_path_points, driver="ESRI Shapefile", encoding="utf-8")
+                    # 添加到ZIP
+                    for ext in [".shp", ".shx", ".dbf", ".prj", ".cpg"]:
+                        file = f"points{ext}"
+                        if os.path.exists(os.path.join(tmp_dir, file)):
                             zipf.write(os.path.join(tmp_dir, file), file)
-                    with open(zip_path, "rb") as f:
-                        shp_zip_data = f.read()
-                exports["SHP"] = ("data_shp.zip", shp_zip_data, "application/zip")
-        return exports
+                
+                # 导出线类型
+                if "线" in feature_types:
+                    # 创建线GeoDataFrame
+                    gdf_line = gpd.GeoDataFrame(
+                        [{}],
+                        geometry=[LineString(coords)],
+                        crs=crs
+                    )
+                    # 保存线SHP文件
+                    shp_path_line = os.path.join(tmp_dir, "line.shp")
+                    gdf_line.to_file(shp_path_line, driver="ESRI Shapefile", encoding="utf-8")
+                    # 添加到ZIP
+                    for ext in [".shp", ".shx", ".dbf", ".prj", ".cpg"]:
+                        file = f"line{ext}"
+                        if os.path.exists(os.path.join(tmp_dir, file)):
+                            zipf.write(os.path.join(tmp_dir, file), file)
+                
+                # 导出面类型
+                if "面" in feature_types:
+                    # 创建面GeoDataFrame（闭合多边形）
+                    gdf_polygon = gpd.GeoDataFrame(
+                        [{}],
+                        geometry=[Polygon(coords)],
+                        crs=crs
+                    )
+                    # 保存面SHP文件
+                    shp_path_polygon = os.path.join(tmp_dir, "polygon.shp")
+                    gdf_polygon.to_file(shp_path_polygon, driver="ESRI Shapefile", encoding="utf-8")
+                    # 添加到ZIP
+                    for ext in [".shp", ".shx", ".dbf", ".prj", ".cpg"]:
+                        file = f"polygon{ext}"
+                        if os.path.exists(os.path.join(tmp_dir, file)):
+                            zipf.write(os.path.join(tmp_dir, file), file)
+            
+            # 读取ZIP文件数据
+            with open(zip_path, "rb") as f:
+                shp_zip_data = f.read()
+        
+        return shp_zip_data
 
     # 导出按钮逻辑
     if clean_data is not None and not clean_data.empty:
-        exports = export_data(clean_data)
-        col1, col2 = st.columns(2)
-        with col1:
-            # 批量打包下载
-            if st.button("📤 批量下载选中格式", type="primary"):
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp_zip:
-                    with zipfile.ZipFile(tmp_zip.name, "w") as zipf:
-                        for name, (filename, data, _) in exports.items():
-                            zipf.writestr(filename, data)
-                with open(tmp_zip.name, "rb") as f:
-                    st.download_button(
-                        label="下载全部打包文件",
-                        data=f,
-                        file_name="地理数据导出包.zip",
-                        mime="application/zip"
-                    )
-                os.unlink(tmp_zip.name)
-        with col2:
-            # 单独下载
-            st.write("单独下载：")
-            for name, (filename, data, mime) in exports.items():
+        if st.button("📤 导出SHP文件", type="primary"):
+            try:
+                shp_zip_data = export_shp(clean_data, feature_types)
                 st.download_button(
-                    label=f"下载{name}文件",
-                    data=data,
-                    file_name=filename,
-                    mime=mime,
-                    key=f"download_{name}"
+                    label="✅ 下载SHP文件",
+                    data=shp_zip_data,
+                    file_name="data_shp.zip",
+                    mime="application/zip",
+                    key="download_shp"
                 )
+            except Exception as e:
+                st.error(f"导出失败：{str(e)}，请检查数据格式后重试")
     else:
-        st.button("📤 批量下载选中格式", disabled=True, help="请先添加有效数据")
+        st.button("📤 导出SHP文件", disabled=True, help="请先添加有效坐标数据")
 
-    # ---------------------- 6. 辅助功能 ----------------------
-    st.subheader("🔧 辅助工具")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        # 下载空白模板
-        if st.button("📥 下载空白模板"):
-            template = pd.DataFrame(columns=fixed_headers)
-            csv_template = template.to_csv(index=False, encoding="utf-8-sig")
-            st.download_button(
-                label="下载CSV模板",
-                data=csv_template,
-                file_name="地理数据编辑模板.csv",
-                mime="text/csv",
-                key="template"
-            )
-    with col2:
-        # 清空数据
-        if st.button("🗑️ 清空表格", type="secondary"):
-            st.session_state.data = pd.DataFrame(columns=fixed_headers)
-            st.rerun()
-    with col3:
-        # 数据统计
-        if clean_data is not None and not clean_data.empty:
-            st.write(f"📊 有效数据：{len(clean_data)}行")
-            x_min, x_max = clean_data["经度/X坐标"].min(), clean_data["经度/X坐标"].max()
-            y_min, y_max = clean_data["纬度/Y坐标"].min(), clean_data["纬度/Y坐标"].max()
-            st.write(f"🌍 坐标范围：\n{x_min:.6f}~{x_max:.6f}\n{y_min:.6f}~{y_max:.6f}")
-
-    # ---------------------- 7. 异常处理 ----------------------
-    st.markdown("""
-        <style>
-        .warning {color: #dc3545;}
-        .success {color: #28a745;}
-        </style>
-        """, unsafe_allow_html=True)
-    try:
-        if "exports" in locals():
-            pass
-    except Exception as e:
-        st.error(f"导出失败：{str(e)}，请检查数据格式后重试")
 
 # 程序入口
 if __name__ == "__main__":
