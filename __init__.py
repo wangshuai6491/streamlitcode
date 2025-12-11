@@ -6,6 +6,7 @@ import streamlit as st
 import os
 import json,time
 import hashlib
+import uuid
 TIAOSHI = True # 是否开启调试，True时在页面上展示解析后的结果（调试用）
 _RELEASE = True
 if not _RELEASE:
@@ -40,7 +41,8 @@ def lineinput(name, default_values=None, key=None):
     if default_values is None:
         default_values = {}
     if key is None:
-         key = 'linetext_' + hashlib.md5(name.encode('utf-8')).hexdigest()[:8]
+         # 使用uuid生成唯一key
+         key = f'linetext_{uuid.uuid4().hex[:8]}'
     # 调用底层组件函数，传入name和default_values参数
     component_value = _component_func(name=name, default_values=default_values, key=key, default={"variables": {}, "content": "等待用户输入..."})
     
@@ -341,10 +343,7 @@ def ast(template):
 # 在侧边栏上下文内调用片段（核心：确保片段渲染到侧边栏）
 def setup_sidebar():
     with st.sidebar:
-        # 侧边栏组件：直接定义组件（不嵌套 st.sidebar）
-        st.toggle("♻️ 使用原生组件（极速）", value=False, key="use_native")
-        
-        # 状态管理功能（直接在片段内定义，后续会被包裹到侧边栏）
+        # 状态管理功能
         # 保存当前状态
         if st.button("保存输入"):
             timestamp = time.strftime("%Y%m%d_%H%M%S")
@@ -374,69 +373,6 @@ def setup_sidebar():
             except Exception as e:
                 st.error(f"导入失败: {str(e)}")
 # 自定义按钮组样式
-
-# 自定义按钮组
-def st_radio_buttons(
-    options,
-    state_key,
-    label=None,
-    key=None,
-    use_container_width=True
-):
-    """
-    显示一组按钮，支持单选，状态通过 st.session_state 管理。
-    
-    Args:
-        options (list): 可以是字符串列表如 ["来信", "来访"] 或元组列表 [(display_text, value)]
-        state_key (str): 用于 st.session_state 的键名，如 "selected_contact"
-        label (str, optional): 整体标签，显示在按钮组上方
-        key (str, optional): Streamlit 组件的唯一键（用于避免冲突）
-        use_container_width (bool): 是否占满容器宽度
-    
-    Returns:
-        str or None: 当前选中的值，未选中则为 None
-    """
-    # 初始化状态
-    if state_key not in st.session_state:
-        st.session_state[state_key] = None
-
-    # 回调函数：更新选中状态
-    def set_selected(value):
-        st.session_state[state_key] = value
-        # 在回调函数中，Streamlit会自动处理片段的重渲染
-
-    # 显示标签（如果有）
-    if label:
-        st.markdown(f"**{label}**")
-
-    # 处理不同格式的选项
-    processed_options = []
-    for opt in options:
-        if isinstance(opt, tuple):
-            # 如果是元组，直接使用
-            processed_options.append(opt)
-        else:
-            # 如果是字符串，将其同时作为显示文本和值
-            processed_options.append((opt, opt))
-
-    # 创建列（按钮数量 = 选项数量）
-    cols = st.columns(len(processed_options))
-
-    # 为每个选项创建按钮
-    for i, (display_text, value) in enumerate(processed_options):
-        with cols[i]:
-            is_selected = st.session_state[state_key] == value
-            st.button(
-                display_text,
-                on_click=set_selected,
-                args=(value,),
-                type="primary" if is_selected else "secondary",
-                use_container_width=use_container_width,
-                key=f"{key}_{i}" if key else None
-            )
-
-    # 返回当前选中值
-    return st.session_state[state_key]
 
 # 更新会话状态中的变量缓存
 def update_variable_cache(component_result):
@@ -485,10 +421,26 @@ def process_text_content(content):
             # 只有在default_values中没有对应变量或值为空时才存储默认值
             if var_name not in st.session_state or st.session_state[var_name] == '':
                 st.session_state[var_name] = default_value
-        # 调用lineinput组件渲染内容，将session_state转换为普通字典以支持JSON序列化
+        
+        # 将session_state转换为普通字典，并过滤掉不可JSON序列化的对象（如DataFrame）
+        filtered_state = {}
+        for key, value in st.session_state.items():
+            try:
+                # 尝试JSON序列化，只有成功的才会被保留
+                json.dumps(value)
+                filtered_state[key] = value
+            except (TypeError, ValueError):
+                # 跳过不可序列化的对象（如DataFrame）
+                continue
+        
+        # 基于文本内容生成稳定的key，避免Streamlit重运行时创建多个重复组件
+        content_key = hashlib.md5(content.encode('utf-8')).hexdigest()[:16]
+        
+        # 调用lineinput组件渲染内容
         component_result = lineinput(
             content, 
-            default_values=dict(st.session_state)
+            default_values=filtered_state,
+            key=f'linetext_{content_key}'
         )
         # 更新会话状态中的变量缓存
         update_variable_cache(component_result)
@@ -519,30 +471,20 @@ def render_element(element):
         st.toggle(name, key=name)
         tsprint(f"{name}_当前值: {st.session_state[name]}")
         return
-
+    # 处理选择框组件select
     elif element_type == 'select':
         name = element.get('name', '')
         options = element.get('options', [])
         value = st.selectbox(name, options, key=name)
         tsprint(f"{name}_当前值: {value}")
         return
-        
+    # 处理单选框组件radio，改为更好看的 st.segmented_control
     elif element_type == 'radio':
         name   = element.get("name", "")
         # 将字符串列表转成 dict 列表，确保 radio 函数拿到正确格式
         raw_options = element.get("options", [])
-        if st.session_state.get("use_native", True):
-            value = st.radio(name, raw_options, key=name, horizontal=True)
-            tsprint(f"{name}_当前值: {value}")
-            return
-        else:
-            value = st_radio_buttons(
-                options=raw_options,
-                state_key=name,
-                label=name,
-                use_container_width=True
-            )
-            tsprint(f"{name}_当前值: {value}")
+        value = st.segmented_control(name, raw_options, key=name)
+        tsprint(f"{name}_当前值: {value}")
         return
     
     # 处理if_bool类型
