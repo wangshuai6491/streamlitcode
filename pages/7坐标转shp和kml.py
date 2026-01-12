@@ -406,6 +406,8 @@ def simple_text_input():
 
 
 def md_input():
+    # 提示用户点击保存后将自动跳转到EXCEL输入页面
+    st.info("⚠️ 注意：点击保存后将自动跳转到EXCEL输入页面，并自动处理为数字格式。")
     with st.form("md_input_form"):
         # 添加XY对调选项
         swap_xy = st.checkbox("🔄 需要对调XY坐标", value=False, help="勾选后将交换X和Y坐标的顺序")
