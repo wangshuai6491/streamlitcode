@@ -407,6 +407,9 @@ def simple_text_input():
 
 def md_input():
     with st.form("md_input_form"):
+        # 添加XY对调选项
+        swap_xy = st.checkbox("🔄 需要对调XY坐标", value=False, help="勾选后将交换X和Y坐标的顺序")
+        
         text_input = st.text_area(
             "输入Markdown表格坐标",
             placeholder="示例格式：\n| x1 | y1 | \n| x2 | y2 | \n| x3 | y3 |\n表格格式为：| X坐标 | Y坐标 |",
@@ -429,8 +432,17 @@ def md_input():
                         parts = [part for part in parts if part]
                         if len(parts) >= 2:
                             # 格式：| X坐标 | Y坐标 |，先移除所有空格
-                            x = float(parts[0].replace(' ', ''))
-                            y = float(parts[1].replace(' ', ''))
+                            raw_x = float(parts[0].replace(' ', ''))
+                            raw_y = float(parts[1].replace(' ', ''))
+                            
+                            # 根据用户选择处理坐标顺序
+                            if swap_xy:
+                                x = raw_y
+                                y = raw_x
+                            else:
+                                x = raw_x
+                                y = raw_y
+                            
                             data.append({"X": x, "Y": y})
                 
                 if data:
