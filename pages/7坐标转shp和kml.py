@@ -365,7 +365,7 @@ def simple_text_input():
         
         text_input = st.text_area(
             "输入x1,y1格式坐标",
-            placeholder="示例格式：\n37470546.123,3938462.159\n37470591.494,3938465.881\n37470599.307,3938403.289\n每行一组坐标，逗号分隔，格式为：X坐标,Y坐标",
+            placeholder="示例格式：\nx1,y1\nx2,y2\nx3,y3\n每行一组坐标，逗号分隔，格式为：X坐标,Y坐标",
             height=200
         )
         submitted = st.form_submit_button("💾 简单文本输入完毕，点击保存")
