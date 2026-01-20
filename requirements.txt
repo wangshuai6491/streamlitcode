@@ -8,6 +8,7 @@ pyinstaller
 streamlit-sortables
 lxml
 python-docx
+docxtpl
 beautifulsoup4
 markdown
 streamlit-extras
