@@ -198,7 +198,7 @@ def generate_contract_doc(template_path, data, doc_index=1):
                             row[pos].text = ""
 
     # 提取提供的数据中有没有文件名
-    if "{文件名}" in data.get("text_data", {}) and data["text_data"]["{文件名}"].strip():
+    if "{文件名}" in data.get("text_data", {}) and data["text_data"]["{文件名}"] is not None and data["text_data"]["{文件名}"].strip():
         file_name = data["text_data"]["{文件名}"]
         if not file_name.endswith(".docx"):
             file_name += ".docx"
@@ -270,6 +270,7 @@ def display_template_info(uploaded_template):
                 st.info("无表格变量")
     except Exception as e:
         st.error(f"模板分析失败：{e}")
+
 
 # 把excel解析为特定格式json
 def excel_to_json(excel_file, text_data_start, tables_data_mapping, sheetname=None):
@@ -372,37 +373,59 @@ def excel_to_json(excel_file, text_data_start, tables_data_mapping, sheetname=No
             
             result.append(sheet_data)
         else:
-            # 只有普通变量的情况：第一行为键，第二行为值，整个sheet生成一个文档
-            # 处理text_data
-            text_data = {}
-            
-            # text_data的键行和值行
-            key_row = text_row
-            value_row = text_row + 1
+            # 只有普通变量的情况：第一行永远为键，从第二行开始为值，如果后面还有第3、4、5....行也是值
+            # 读取第一行的所有键
+            keys = []
             current_col = text_col
             
-            # 遍历所有列，直到遇到空单元格
+            # 遍历第一行，获取所有键
             while True:
-                key_cell = sheet.cell(row=key_row, column=current_col)
-                value_cell = sheet.cell(row=value_row, column=current_col)
-                
-                # 检查是否为空单元格
-                if key_cell.value is None:
+                key_cell = sheet.cell(row=text_row, column=current_col)
+                if key_cell.value is None or pd.isna(key_cell.value):
                     break
-                
-                # 添加到text_data，键用{}包起来
-                text_data[f"{{{key_cell.value}}}"] = value_cell.value
+                keys.append(str(key_cell.value).strip())
                 current_col += 1
             
-            # 构建当前sheet的JSON对象
-            sheet_data = {
-                "text_data": text_data,
-                "tables_data": {}
-            }
+            # 如果没有键，直接返回
+            if not keys:
+                return result
             
-            result.append(sheet_data)
+            # 从第二行开始读取值，每行生成一个文档
+            current_row = text_row + 1
+            
+            while True:
+                # 检查第一列是否为空，为空则结束
+                first_cell = sheet.cell(row=current_row, column=text_col)
+                if first_cell.value is None or pd.isna(first_cell.value):
+                    break
+                
+                # 创建当前行的text_data
+                text_data = {}
+                
+                # 遍历所有键，读取对应列的值
+                for i, key in enumerate(keys):
+                    value_cell = sheet.cell(row=current_row, column=text_col + i)
+                    value = value_cell.value
+                    
+                    # 只有当值不为空时才添加到text_data
+                    if not (pd.isna(value) or (isinstance(value, str) and str(value).strip() == "")):
+                        # 添加到text_data，键用{}包起来
+                        text_data[f"{{{key}}}"] = str(value).strip()
+                
+                # 只有当text_data不为空时才添加到结果
+                if text_data:
+                    # 构建当前行的JSON对象
+                    row_data = {
+                        "text_data": text_data,
+                        "tables_data": {}
+                    }
+                    
+                    result.append(row_data)
+                
+                current_row += 1
     
     return result
+
 # 只有普通变量的数据解析函数，最终处理为json
 def only_normal_vars():
     """
