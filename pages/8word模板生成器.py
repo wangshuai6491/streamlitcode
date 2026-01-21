@@ -272,7 +272,7 @@ def display_template_info(uploaded_template):
         st.error(f"模板分析失败：{e}")
 
 # 把excel解析为特定格式json
-def excel_to_json(excel_file, text_data_start, tables_data_mapping):
+def excel_to_json(excel_file, text_data_start, tables_data_mapping, sheetname=None):
     """
     将Excel文件转换为指定格式的JSON格式
     
@@ -280,94 +280,129 @@ def excel_to_json(excel_file, text_data_start, tables_data_mapping):
     excel_file: str - Excel文件路径
     text_data_start: str - text_data的左上角单元格，如"A1"
     tables_data_mapping: dict - tables_data的表名及其对应的左上角单元格，如{"家庭成员": "A10"}
+    sheetname: str - 可选，指定要处理的sheet名称，如果不提供则处理所有sheet
     """
     # 读取Excel文件
     workbook = openpyxl.load_workbook(excel_file)
     
     result = []
     
-    # 遍历所有sheet
-    for sheet_name in workbook.sheetnames:
+    # 确定要处理的sheet列表
+    sheet_names = [sheetname] if sheetname and sheetname in workbook.sheetnames else workbook.sheetnames
+    
+    # 遍历要处理的sheet
+    for sheet_name in sheet_names:
         sheet = workbook[sheet_name]
-        
-        # 处理text_data
-        text_data = {}
         
         # 解析text_data起始单元格
         text_col = column_index_from_string(text_data_start[0])
         text_row = int(text_data_start[1:])
         
-        # text_data的键行和值行
-        key_row = text_row
-        value_row = text_row + 1
-        current_col = text_col
-        
-        # 遍历所有列，直到遇到空单元格
-        while True:
-            key_cell = sheet.cell(row=key_row, column=current_col)
-            value_cell = sheet.cell(row=value_row, column=current_col)
+        if tables_data_mapping:
+            # 有表格数据的情况：第一行为键，第二行为值，每个sheet生成一个文档
+            # 处理text_data
+            text_data = {}
             
-            # 检查是否为空单元格
-            if key_cell.value is None:
-                break
+            # text_data的键行和值行
+            key_row = text_row
+            value_row = text_row + 1
+            current_col = text_col
             
-            # 添加到text_data，键用{}包起来
-            text_data[f"{{{key_cell.value}}}"] = value_cell.value
-            current_col += 1
-        
-        # 处理tables_data
-        tables_data = {}
-        
-        for table_name, table_start in tables_data_mapping.items():
-            # 解析表格起始单元格
-            table_col = column_index_from_string(table_start[0])
-            table_row = int(table_start[1:])
-            
-            # 读取表头（起始行）
-            headers = []
-            header_row = table_row
-            current_col = table_col
-            
+            # 遍历所有列，直到遇到空单元格
             while True:
-                header_cell = sheet.cell(row=header_row, column=current_col)
-                if header_cell.value is None:
+                key_cell = sheet.cell(row=key_row, column=current_col)
+                value_cell = sheet.cell(row=value_row, column=current_col)
+                
+                # 检查是否为空单元格
+                if key_cell.value is None:
                     break
-                headers.append(header_cell.value)
+                
+                # 添加到text_data，键用{}包起来
+                text_data[f"{{{key_cell.value}}}"] = value_cell.value
                 current_col += 1
             
-            # 读取数据行（从起始行+1开始）
-            table_data = []
-            data_start_row = table_row + 1
-            current_row = data_start_row
+            # 处理tables_data
+            tables_data = {}
             
+            for table_name, table_start in tables_data_mapping.items():
+                # 解析表格起始单元格
+                table_col = column_index_from_string(table_start[0])
+                table_row = int(table_start[1:])
+                
+                # 读取表头（起始行）
+                headers = []
+                header_row = table_row
+                current_col = table_col
+                
+                while True:
+                    header_cell = sheet.cell(row=header_row, column=current_col)
+                    if header_cell.value is None:
+                        break
+                    headers.append(header_cell.value)
+                    current_col += 1
+                
+                # 读取数据行（从起始行+1开始）
+                table_data = []
+                data_start_row = table_row + 1
+                current_row = data_start_row
+                
+                while True:
+                    # 检查第一列是否为空，为空则结束
+                    first_cell = sheet.cell(row=current_row, column=table_col)
+                    if first_cell.value is None:
+                        break
+                    
+                    # 读取当前行数据
+                    row_data = {}
+                    for i, header in enumerate(headers):
+                        value_cell = sheet.cell(row=current_row, column=table_col + i)
+                        row_data[header] = value_cell.value
+                    
+                    table_data.append(row_data)
+                    current_row += 1
+                
+                # 添加到tables_data
+                tables_data[table_name] = table_data
+            
+            # 构建当前sheet的JSON对象
+            sheet_data = {
+                "text_data": text_data,
+                "tables_data": tables_data
+            }
+            
+            result.append(sheet_data)
+        else:
+            # 只有普通变量的情况：第一行为键，第二行为值，整个sheet生成一个文档
+            # 处理text_data
+            text_data = {}
+            
+            # text_data的键行和值行
+            key_row = text_row
+            value_row = text_row + 1
+            current_col = text_col
+            
+            # 遍历所有列，直到遇到空单元格
             while True:
-                # 检查第一列是否为空，为空则结束
-                first_cell = sheet.cell(row=current_row, column=table_col)
-                if first_cell.value is None:
+                key_cell = sheet.cell(row=key_row, column=current_col)
+                value_cell = sheet.cell(row=value_row, column=current_col)
+                
+                # 检查是否为空单元格
+                if key_cell.value is None:
                     break
                 
-                # 读取当前行数据
-                row_data = {}
-                for i, header in enumerate(headers):
-                    value_cell = sheet.cell(row=current_row, column=table_col + i)
-                    row_data[header] = value_cell.value
-                
-                table_data.append(row_data)
-                current_row += 1
+                # 添加到text_data，键用{}包起来
+                text_data[f"{{{key_cell.value}}}"] = value_cell.value
+                current_col += 1
             
-            # 添加到tables_data
-            tables_data[table_name] = table_data
-        
-        # 构建当前sheet的JSON对象
-        sheet_data = {
-            "text_data": text_data,
-            "tables_data": tables_data
-        }
-        
-        result.append(sheet_data)
+            # 构建当前sheet的JSON对象
+            sheet_data = {
+                "text_data": text_data,
+                "tables_data": {}
+            }
+            
+            result.append(sheet_data)
     
     return result
-
 # 只有普通变量的数据解析函数，最终处理为json
 def only_normal_vars():
     """
@@ -378,7 +413,7 @@ def only_normal_vars():
     
     if uploaded_excel:
         try:
-            # 读取Excel文件
+            # 读取Excel文件获取sheet列表
             excel_data = pd.ExcelFile(uploaded_excel)
             
             # 让用户选择表格（工作表）
@@ -387,76 +422,33 @@ def only_normal_vars():
                 excel_data.sheet_names,
                 key="only_normal_vars_sheet"
             )
-            
-            # 读取选中工作表的所有数据
-            df = excel_data.parse(selected_sheet, header=0)  # 明确指定第一行为表头
-            
-            # 以A1为基础，读取连续区域的内容
-            # 连续区域：从A1开始，向右直到最后一个有数据的列，向下直到最后一个有数据的行
-            # 找到最后一个有数据的行和列
-            # 方法：去掉全为空的行和列
-            df_clean = df.dropna(how='all').dropna(axis=1, how='all')
-            
-            # 显示连续区域的范围
-            if not df_clean.empty:
-                last_row = df_clean.shape[0]
-                last_col = df_clean.shape[1]
-                # 转换为Excel列名（例如：1->A, 2->B, ...）
-                last_col_name = chr(ord('A') + last_col - 1)
-                st.info(f"检测到连续数据区域：A1:{last_col_name}{last_row+1}（含表头）")
-                
-                # 显示处理后的数据
-                st.subheader("连续数据区域")
-                st.dataframe(df_clean)
-                
-                # 解析为JSON格式
-                if st.button("解析普通变量数据", key="parse_normal_vars"):
-                    try:
-                        # 解析普通变量：第一列为占位符名称，第二列为值
-                        # 确保数据框有足够的列
-                        if df_clean.shape[1] >= 2:
-                            # 遍历每一行数据
-                            all_family_data = []
-                            
-                            for index, row in df_clean.iterrows():
-                                family_data = {
-                                    "text_data": {},
-                                    "tables_data": {}
-                                }
-                                
-                                # 获取占位符名称（第一列）
-                                placeholder_name = str(row.iloc[0]).strip()
-                                # 获取值（第二列）
-                                value = row.iloc[1]
-                                
-                                # 跳过空行和无效数据
-                                if placeholder_name and placeholder_name != "nan" and pd.notna(value) and str(value).strip() != "":
-                                    # 转换为占位符格式（例如："姓名" -> "{姓名}"）
-                                    placeholder = f"{{{placeholder_name}}}"
-                                    family_data["text_data"][placeholder] = str(value).strip()
-                                    
-                                    # 添加到结果列表
-                                    all_family_data.append(family_data)
-                        else:
-                            st.warning("检测到的数据区域不符合要求，需要至少两列数据（第一列为占位符名称，第二列为值）")
-                            all_family_data = []
-                        
-                        # 显示解析后的数据结构
-                        with st.sidebar.expander("查看解析后的数据结构", expanded=False):
-                            st.success(f"成功解析 {len(all_family_data)} 条普通变量数据")
-                            st.json(all_family_data)
-                        return all_family_data
-                    except Exception as e:
-                        st.error(f"数据解析失败：{e}")
-                        import traceback
-                        st.code(traceback.format_exc())
-            else:
-                st.warning("未检测到有效数据，请检查Excel文件")
+        
+            # 解析为JSON格式
+            if st.button("解析普通变量数据", key="parse_normal_vars"):
+                try:
+                    # 调用excel_to_json函数，使用空tables_data_mapping和指定sheetname
+                    all_data = excel_to_json(uploaded_excel, "A1", {}, sheetname=selected_sheet)
+                    
+                    # 显示解析后的数据结构
+                    with st.sidebar.expander("查看解析后的数据结构", expanded=False):
+                        st.success(f"成功解析 {len(all_data)} 条普通变量数据")
+                        st.json(all_data)
+                    return all_data
+                except Exception as e:
+                    st.error(f"数据解析失败：{e}")
+                    import traceback
+                    st.code(traceback.format_exc())
+                    
         
         except Exception as e:
             st.error(f"Excel读取失败：{e}")
             import traceback
             st.code(traceback.format_exc())
+            
+            # 清理临时文件
+            temp_excel_path = os.path.join(tempfile.gettempdir(), uploaded_excel.name)
+            if os.path.exists(temp_excel_path):
+                os.remove(temp_excel_path)
 
 # 有表格变量一个sheet一个word
 def with_table_vars():
