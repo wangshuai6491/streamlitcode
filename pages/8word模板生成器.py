@@ -7,6 +7,8 @@ import pandas as pd
 from io import BytesIO
 import tempfile
 import zipfile
+import openpyxl
+from openpyxl.utils import column_index_from_string, get_column_letter
 
 # 解析word模板变量的函数
 def analyze_template(template_path):
@@ -196,7 +198,7 @@ def generate_contract_doc(template_path, data, doc_index=1):
                             row[pos].text = ""
 
     # 提取提供的数据中有没有文件名
-    if "{文件名}" in data.get("text_data", {}):
+    if "{文件名}" in data.get("text_data", {}) and data["text_data"]["{文件名}"].strip():
         file_name = data["text_data"]["{文件名}"]
         if not file_name.endswith(".docx"):
             file_name += ".docx"
@@ -228,49 +230,143 @@ def cebianlan():
     else:
         st.sidebar.warning(f"示例模板文件不存在，路径：{template_file_path}")
 
-
 # 展示模板占位符信息
-def display_template_info(uploaded_template, tmp_path):
+def display_template_info(uploaded_template):
     """
     显示Word模板中的占位符信息
     
     :param uploaded_template: 上传的Word模板文件对象
     :param tmp_path: 临时文件路径
     """
-    if uploaded_template and tmp_path:
-        # 分析模板，显示占位符信息
-        try:
-            template_info = analyze_template(tmp_path)
+    try:
+        template_info = analyze_template(uploaded_template)
+        
+        with st.expander("📋 word占位符解析", expanded=False):
+            # 显示普通变量
+            st.subheader("📝 普通变量")
+            if template_info["normal_placeholders"]:
+                # 将所有普通变量拼接成一个字符串，每个占一行
+                normal_vars_text = "\n".join(template_info["normal_placeholders"])
+                st.code(normal_vars_text, language="plaintext")
+            else:
+                st.info("无普通变量")
             
-            with st.expander("📋 已解析占位符信息", expanded=True):
-                # 显示普通变量
-                st.subheader("📝 普通变量")
-                if template_info["normal_placeholders"]:
-                    # 将所有普通变量拼接成一个字符串，每个占一行
-                    normal_vars_text = "\n".join(template_info["normal_placeholders"])
-                    st.code(normal_vars_text, language="plaintext")
-                else:
-                    st.info("无普通变量")
+            # 显示表格变量
+            st.subheader("📊 表格变量")
+            if template_info["table_info"]:
+                # 构建表格变量文本，按表格分组，每个占一行
+                table_vars_lines = []
+                for table_name, info in template_info["table_info"].items():
+                    table_vars_lines.append(f"=== {table_name} ===")
+                    table_vars_lines.extend(info["placeholders"])
+                    table_vars_lines.append("")  # 表格之间空一行
+                # 移除最后一个空行
+                if table_vars_lines and table_vars_lines[-1] == "":
+                    table_vars_lines.pop()
+                # 拼接成一个字符串
+                table_vars_text = "\n".join(table_vars_lines)
+                st.code(table_vars_text, language="plaintext")
+            else:
+                st.info("无表格变量")
+    except Exception as e:
+        st.error(f"模板分析失败：{e}")
+
+# 把excel解析为特定格式json
+def excel_to_json(excel_file, text_data_start, tables_data_mapping):
+    """
+    将Excel文件转换为指定格式的JSON格式
+    
+    参数:
+    excel_file: str - Excel文件路径
+    text_data_start: str - text_data的左上角单元格，如"A1"
+    tables_data_mapping: dict - tables_data的表名及其对应的左上角单元格，如{"家庭成员": "A10"}
+    """
+    # 读取Excel文件
+    workbook = openpyxl.load_workbook(excel_file)
+    
+    result = []
+    
+    # 遍历所有sheet
+    for sheet_name in workbook.sheetnames:
+        sheet = workbook[sheet_name]
+        
+        # 处理text_data
+        text_data = {}
+        
+        # 解析text_data起始单元格
+        text_col = column_index_from_string(text_data_start[0])
+        text_row = int(text_data_start[1:])
+        
+        # text_data的键行和值行
+        key_row = text_row
+        value_row = text_row + 1
+        current_col = text_col
+        
+        # 遍历所有列，直到遇到空单元格
+        while True:
+            key_cell = sheet.cell(row=key_row, column=current_col)
+            value_cell = sheet.cell(row=value_row, column=current_col)
+            
+            # 检查是否为空单元格
+            if key_cell.value is None:
+                break
+            
+            # 添加到text_data，键用{}包起来
+            text_data[f"{{{key_cell.value}}}"] = value_cell.value
+            current_col += 1
+        
+        # 处理tables_data
+        tables_data = {}
+        
+        for table_name, table_start in tables_data_mapping.items():
+            # 解析表格起始单元格
+            table_col = column_index_from_string(table_start[0])
+            table_row = int(table_start[1:])
+            
+            # 读取表头（起始行）
+            headers = []
+            header_row = table_row
+            current_col = table_col
+            
+            while True:
+                header_cell = sheet.cell(row=header_row, column=current_col)
+                if header_cell.value is None:
+                    break
+                headers.append(header_cell.value)
+                current_col += 1
+            
+            # 读取数据行（从起始行+1开始）
+            table_data = []
+            data_start_row = table_row + 1
+            current_row = data_start_row
+            
+            while True:
+                # 检查第一列是否为空，为空则结束
+                first_cell = sheet.cell(row=current_row, column=table_col)
+                if first_cell.value is None:
+                    break
                 
-                # 显示表格变量
-                st.subheader("📊 表格变量")
-                if template_info["table_info"]:
-                    # 构建表格变量文本，按表格分组，每个占一行
-                    table_vars_lines = []
-                    for table_name, info in template_info["table_info"].items():
-                        table_vars_lines.append(f"=== {table_name} ===")
-                        table_vars_lines.extend(info["placeholders"])
-                        table_vars_lines.append("")  # 表格之间空一行
-                    # 移除最后一个空行
-                    if table_vars_lines and table_vars_lines[-1] == "":
-                        table_vars_lines.pop()
-                    # 拼接成一个字符串
-                    table_vars_text = "\n".join(table_vars_lines)
-                    st.code(table_vars_text, language="plaintext")
-                else:
-                    st.info("无表格变量")
-        except Exception as e:
-            st.error(f"模板分析失败：{e}")
+                # 读取当前行数据
+                row_data = {}
+                for i, header in enumerate(headers):
+                    value_cell = sheet.cell(row=current_row, column=table_col + i)
+                    row_data[header] = value_cell.value
+                
+                table_data.append(row_data)
+                current_row += 1
+            
+            # 添加到tables_data
+            tables_data[table_name] = table_data
+        
+        # 构建当前sheet的JSON对象
+        sheet_data = {
+            "text_data": text_data,
+            "tables_data": tables_data
+        }
+        
+        result.append(sheet_data)
+    
+    return result
 
 # 只有普通变量的数据解析函数，最终处理为json
 def only_normal_vars():
@@ -316,44 +412,40 @@ def only_normal_vars():
                 # 解析为JSON格式
                 if st.button("解析普通变量数据", key="parse_normal_vars"):
                     try:
-                        # 确保列名是字符串类型
-                        df_clean.columns = df_clean.columns.astype(str)
-                        
-                        # 假设第一行为列名，从第二行开始为数据
-                        # 列名对应占位符名称（例如："户主姓名" -> "{户主姓名}"）
-                        # 每一行对应一个word的数据
-                        all_family_data = []
-                        
-                        # 遍历每一行数据
-                        for index, row in df_clean.iterrows():
-                            family_data = {
-                                "text_data": {},
-                                "tables_data": {}
-                            }
+                        # 解析普通变量：第一列为占位符名称，第二列为值
+                        # 确保数据框有足够的列
+                        if df_clean.shape[1] >= 2:
+                            # 遍历每一行数据
+                            all_family_data = []
                             
-                            # 将每一列转换为占位符
-                            for col_name, value in row.items():
-                                # 跳过空值
-                                if pd.notna(value) and value != "" and str(value).strip() != "":
+                            for index, row in df_clean.iterrows():
+                                family_data = {
+                                    "text_data": {},
+                                    "tables_data": {}
+                                }
+                                
+                                # 获取占位符名称（第一列）
+                                placeholder_name = str(row.iloc[0]).strip()
+                                # 获取值（第二列）
+                                value = row.iloc[1]
+                                
+                                # 跳过空行和无效数据
+                                if placeholder_name and placeholder_name != "nan" and pd.notna(value) and str(value).strip() != "":
                                     # 转换为占位符格式（例如："姓名" -> "{姓名}"）
-                                    placeholder = f"{{{col_name.strip()}}}"
+                                    placeholder = f"{{{placeholder_name}}}"
                                     family_data["text_data"][placeholder] = str(value).strip()
-                            
-                            # 只有当text_data不为空时才添加
-                            if family_data["text_data"]:
-                                all_family_data.append(family_data)
-                        
-                        # 保存到session state
-                        st.session_state.all_family_data = all_family_data
-                        st.success(f"成功解析 {len(all_family_data)} 条普通变量数据")
+                                    
+                                    # 添加到结果列表
+                                    all_family_data.append(family_data)
+                        else:
+                            st.warning("检测到的数据区域不符合要求，需要至少两列数据（第一列为占位符名称，第二列为值）")
+                            all_family_data = []
                         
                         # 显示解析后的数据结构
-                        with st.expander("查看解析后的数据结构", expanded=False):
+                        with st.sidebar.expander("查看解析后的数据结构", expanded=False):
+                            st.success(f"成功解析 {len(all_family_data)} 条普通变量数据")
                             st.json(all_family_data)
-                        
-                        # 显示调试信息
-                        st.write(f"已存入session_state.all_family_data，数据条数：{len(all_family_data)}")
-                        
+                        return all_family_data
                     except Exception as e:
                         st.error(f"数据解析失败：{e}")
                         import traceback
@@ -366,10 +458,99 @@ def only_normal_vars():
             import traceback
             st.code(traceback.format_exc())
 
+# 有表格变量一个sheet一个word
+def with_table_vars():
+    """
+    处理带有表格变量的情况：用户上传Excel后，默认处理所有sheet，最终解析为JSON格式
+    """
+    # 上传Excel文件
+    uploaded_excel = st.file_uploader("上传Excel文件（包含普通变量和表格变量）", type=["xlsx", "xls"], key="with_table_vars_excel")
+    
+    if uploaded_excel:
+        try:
+            # 保存上传的Excel文件到临时目录
+            temp_excel_path = os.path.join(tempfile.gettempdir(), uploaded_excel.name)
+            with open(temp_excel_path, "wb") as f:
+                f.write(uploaded_excel.getvalue())
+            
+            # 普通变量区域设置
+            st.subheader("普通变量区域")
+            text_data_start = st.text_input("普通变量左上角单元格（例如：A1）", value="A1", key="text_data_start")
+            
+            # 表格变量区域设置
+            st.subheader("表格变量区域")
+            
+            # 动态添加表格配置
+            num_tables = st.number_input("表格数量", min_value=1, value=1, step=1, key="num_tables")
+            
+            tables_data_mapping = {}
+            for i in range(num_tables):
+                col1, col2 = st.columns(2)
+                with col1:
+                    table_name = st.text_input(f"表格{i+1}名称（例如：家庭成员）", value=f"{i+1}", key=f"table_name_{i}")
+                with col2:
+                    table_start = st.text_input(f"表格{i+1}左上角单元格（例如：A10）", value=f"A{10+i*10}", key=f"table_start_{i}")
+                
+                if table_name and table_start:
+                    tables_data_mapping[table_name] = table_start
+            
+            # 解析按钮
+            if st.button("解析所有工作表数据", key="parse_with_table_vars"):
+                try:
+                    # 调用本地的excel_to_json函数
+                    all_data = excel_to_json(temp_excel_path, text_data_start, tables_data_mapping)
+                    
+                    # 显示解析后的数据结构
+                    with st.sidebar.expander("查看解析后的数据结构", expanded=False):
+                        st.success(f"成功解析 {len(all_data)} 个工作表的数据")
+                        st.json(all_data)
+                    
+                    # 删除临时文件
+                    os.remove(temp_excel_path)
+                    
+                    # 直接返回解析结果
+                    return all_data
+                    
+                except Exception as e:
+                    st.error(f"数据解析失败：{e}")
+                    import traceback
+                    st.code(traceback.format_exc())
+                    
+                    # 清理临时文件
+                    if os.path.exists(temp_excel_path):
+                        os.remove(temp_excel_path)
+        
+        except Exception as e:
+            st.error(f"Excel读取失败：{e}")
+            import traceback
+            st.code(traceback.format_exc())
+
+# json解析
+def parse_json():
+    # JSON输入框
+    json_input = st.text_area("输入JSON数据（支持多个家庭，用数组包裹）", height=150, placeholder='例如：[{"text_data": {...}, "tables_data": {...}}]')
+    if json_input:
+        try:
+            result = json.loads(json_input)
+            # 确保是数组格式
+            if not isinstance(result, list):
+                result = [result]
+            # 显示解析后的数据结构
+            with st.sidebar.expander("查看解析后的数据结构", expanded=False):
+                st.success(f"成功解析 {len(result)} 条数据")
+                st.json(result)
+            return result
+        except json.JSONDecodeError as e:
+            st.error(f"JSON解析失败：{e}")
+
 # -------------------------- Streamlit应用 --------------------------
 if __name__ == "__main__":
     # 设置页面标题和布局
     st.set_page_config(page_title="Word模板批量生成", layout="wide")
+    
+    # 初始化session_state
+    if "all_data" not in st.session_state:
+        st.session_state.all_data = []
     
     # 主标题（使用markdown格式）
     st.markdown("### Word模板批量生成")
@@ -377,114 +558,46 @@ if __name__ == "__main__":
     # 调用模板函数
     cebianlan()
     
-    # 初始化session state
-    if 'all_family_data' not in st.session_state:
-        st.session_state.all_family_data = []
-    if 'uploaded_template' not in st.session_state:
-        st.session_state.uploaded_template = None
-    if 'tmp_path' not in st.session_state:
-        st.session_state.tmp_path = None
-    if 'template_file_name' not in st.session_state:
-        st.session_state.template_file_name = None
-    if 'generate_documents' not in st.session_state:
-        st.session_state.generate_documents = False
-    
-    # 初始化局部变量
-    uploaded_template = st.session_state.uploaded_template
-    tmp_path = st.session_state.tmp_path
-    template_file_name = st.session_state.template_file_name
-    
     # Word模板上传（使用session_state保存模板信息）
-    st.subheader("📄 Word模板上传")
+    st.subheader("📄 1、Word模板上传")
     new_uploaded_template = st.file_uploader("请上传Word模板文件(.docx)", type="docx")
-    
-    # 检查是否上传了新模板
-    if new_uploaded_template:
-        # 上传新模板时清除之前的数据
-        st.session_state.all_family_data = []
-        
-        # 保存上传的模板到临时文件
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
-            tmp.write(new_uploaded_template.getvalue())
-            tmp_path = tmp.name
-        
-        template_file_name = new_uploaded_template.name
-        
-        # 更新session state和局部变量
-        st.session_state.uploaded_template = uploaded_template = new_uploaded_template
-        st.session_state.tmp_path = tmp_path
-        st.session_state.template_file_name = template_file_name
-        
-        # 在侧边栏显示模板信息
-        with st.sidebar:
-            display_template_info(new_uploaded_template, tmp_path)
+
+    # 在侧边栏显示模板信息
+    with st.sidebar:
+        display_template_info(new_uploaded_template)
     
     # 主内容区只显示数据输入部分
-    st.markdown("### 📊 数据输入")
+    st.markdown("### 📊 2、数据输入")
     # 数据输入方式选择
-    input_tab1, input_tab2, input_tab3 = st.tabs(["只有普通变量","按基础变量和表格变量生成word","JSON格式"])
+    input_tab1, input_tab2, input_tab3 = st.tabs(["只有普通变量","有表格变量一个sheet一个word","JSON格式"])
 
-    # 只有普通变量（一个sheet表生成一个word）
+    # 只有普通变量（一个sheet表生成多个word）
     with input_tab1:
-        only_normal_vars()
-    # Excel输入方式（基础变量+表格变量）
+        result = only_normal_vars()
+        if result:
+            st.session_state.all_data = result
+    # 有表格变量一个sheet一个word
     with input_tab2:
-        pass
+        result = with_table_vars()
+        if result:
+            st.session_state.all_data = result
     
     # JSON输入方式
     with input_tab3:
-        # JSON输入框
-        json_input = st.text_area("输入JSON数据（支持多个家庭，用数组包裹）", height=150, placeholder='例如：[{"text_data": {...}, "tables_data": {...}}]')
-        
-        if st.button("解析JSON数据"):
-            try:
-                st.session_state.all_family_data = json.loads(json_input)
-                # 确保是数组格式
-                if not isinstance(st.session_state.all_family_data, list):
-                    st.session_state.all_family_data = [st.session_state.all_family_data]
-                st.success(f"成功解析 {len(st.session_state.all_family_data)} 条数据")
-            except json.JSONDecodeError as e:
-                st.error(f"JSON解析失败：{e}")
-        
+        result = parse_json()
+        if result:
+            st.session_state.all_data = result
+
     # 批量生成文档按钮
     st.write("---")
-    
-    # 添加调试信息，展示session_state数据
-    with st.expander("调试信息（点击展开）", expanded=False):
-        st.write(f"uploaded_template是否存在: {uploaded_template is not None}")
-        st.write(f"tmp_path是否存在: {tmp_path is not None}")
-        st.write(f"all_family_data是否存在: {st.session_state.get('all_family_data') is not None}")
-        if st.session_state.get('all_family_data'):
-            st.write(f"all_family_data长度: {len(st.session_state.get('all_family_data'))}")
-            if len(st.session_state.get('all_family_data')) > 0:
-                st.write(f"第一条数据内容: {st.session_state.get('all_family_data')[0]}")
-        st.write(f"session_state中的键: {list(st.session_state.keys())}")
-    
-    # 判断按钮是否禁用
-    disabled = False
-    disable_reason = ""
-    if not uploaded_template:
-        disabled = True
-        disable_reason = "没有上传Word模板"
-    elif not st.session_state.get("all_family_data") or len(st.session_state.get("all_family_data")) == 0:
-        disabled = True
-        disable_reason = "没有解析到有效数据"
-    elif not tmp_path or not os.path.exists(tmp_path):
-        disabled = True
-        disable_reason = "模板临时文件不存在"
-    
-    st.info(f"按钮状态：{'禁用' if disabled else '启用'} - {disable_reason if disabled else '所有条件都满足'}")
-    
+    st.subheader("🏭 3、生成文档")
     # 批量生成文档按钮
-    if st.button("批量生成文档", 
-                disabled=disabled, 
-                type="primary",
-                use_container_width=True):
-        st.session_state.generate_documents = True
-    
-    # 生成文档逻辑
-    if st.session_state.generate_documents:
-        if st.session_state.get("all_family_data") and uploaded_template and tmp_path and os.path.exists(tmp_path):
+    if st.button("批量生成文档"):
+        st.write("🚀 开始...")
+        st.code(st.session_state.all_data)
+        st.write(new_uploaded_template)
+        
+        if st.session_state.all_data and new_uploaded_template:
             st.write("🚀 开始生成文档...")
             
             # 创建生成的文档列表
@@ -492,9 +605,9 @@ if __name__ == "__main__":
             
             # 创建一个固定高度的容器，用于显示滚动消息
             with st.container(height=200, border=True):
-                for index, family in enumerate(st.session_state.all_family_data, start=1):
+                for index, family in enumerate(st.session_state.all_data, start=1):
                     try:
-                        doc_stream, file_name = generate_contract_doc(tmp_path, family, doc_index=index)
+                        doc_stream, file_name = generate_contract_doc(new_uploaded_template, family, doc_index=index)
                         generated_docs.append((doc_stream, file_name))
                         st.success(f"✅ {file_name} 生成成功")
                     except Exception as e:
@@ -534,20 +647,11 @@ if __name__ == "__main__":
                         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     )
         
-        # 重置生成标志
-        st.session_state.generate_documents = False
-    
-    # 最后删除临时文件（在应用结束时）
-    def cleanup_temp_files():
-        if tmp_path and os.path.exists(tmp_path):
-            try:
-                os.unlink(tmp_path)
-                st.sidebar.success("临时文件已清理")
-            except:
-                pass
     
     # 在侧边栏添加清理按钮（可选）
     with st.sidebar:
         st.write("---")
         if st.button("清理临时文件"):
-            cleanup_temp_files()
+            # 清理st.session_state.all_data
+            st.session_state.all_data = []
+            st.sidebar.success("临时数据已清理")
