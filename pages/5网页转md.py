@@ -152,4 +152,7 @@ st.sidebar.markdown('''
 ## 同功能网站推荐
 - [HelloWorld HTML to Markdown](https://www.helloworld.net/html2md)
 - [DevTool HTML to MD](https://devtool.tech/html-md)
+## 油猴脚本插件
+- [网页转md](https://gtjs-9gjbu0mx.maozi.io/2026/02/20/you-hou/wang-ye-zhuan-md/)
+
 ''')
