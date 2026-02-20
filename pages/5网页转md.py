@@ -149,14 +149,7 @@ if st.button('转换为 Markdown'):
 
 # 添加使用说明
 st.sidebar.markdown('''
-## 使用说明
-1. 在输入框中输入要转换的网址
-2. 点击 "转换为 Markdown" 按钮
-3. 等待转换完成后查看结果
-4. 可点击 "下载 Markdown 文件" 保存结果
-
-## 功能特点
-- 支持将 HTML 网页转换为 Markdown 格式
-- 保留网页中的链接和图片
-- 提供下载功能，方便保存转换结果
+## 同功能网站推荐
+- [HelloWorld HTML to Markdown](https://www.helloworld.net/html2md)
+- [DevTool HTML to MD](https://devtool.tech/html-md)
 ''')
